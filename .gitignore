@@ -150,3 +150,6 @@ style.css
 tailwind.config.js
 yarn-error.log
 yarn.lock
+
+# Creds
+finvasia_creds.yaml
