@@ -1,19 +1,39 @@
 import ast
+from talib import abstract
+import numpy as np
 
 
 class Candle:
-    def __init__(self, candle_type="standard"):
-        self.data = []
+    def __init__(self, period='1sec'):
+        # note that all ndarrays must be the same length!
+        self.inputs = {
+            'open': np.random.random(100),
+            'high': np.random.random(100),
+            'low': np.random.random(100),
+            'close': np.random.random(100),
+            'volume': np.random.random(100)
+        }
 
-    def macd(self, period):
-        return period
+    def macd(self, fastperiod, slowperiod, signalperiod):
+        _, macdsignal, _ = abstract.MACD(self.inputs,
+                                         fastperiod=fastperiod,
+                                         slowperiod=slowperiod,
+                                         signalperiod=signalperiod)
+        print(macdsignal[-1])
+        return macdsignal[-1]
 
-    def ema(self, period):
-        return period
+    def ema(self, timeperiod):
+        result = abstract.EMA(self.inputs['close'], timeperiod=timeperiod)
+        print(result[-1])
+        return result[-1]
 
 
-candle = Candle()
-ha = Candle("ha")
+month_ca = Candle("1Month")
+week_ca = Candle("1Week")
+day_ca = Candle("1Day")
+hour_ca = Candle("1Hour")
+minute_ca = Candle("5Minute")
+second_ca = Candle("1Second")
 
 
 def validate_expression(expression):
@@ -39,16 +59,29 @@ def validate_expression(expression):
 
 
 def is_valid_file(filepath):
-    # Read the expressions from the text file
-    with open(filepath, 'r') as file:
-        expressions = file.readlines()
+    try:
+        # Read the expressions from the text file
+        with open(filepath, 'r') as file:
+            expressions = file.readlines()
 
-    # Validate each expression before evaluating
-    for idx, expression in enumerate(expressions):
-        if not validate_expression(expression):
-            print(f" {idx + 1}: error in {expression} ")
-            return False
-    return True
+        # Validate each expression before evaluating
+        for idx, expression in enumerate(expressions):
+            if not validate_expression(expression):
+                print(f" {idx + 1}: error in {expression} ")
+                return False
+        return True
+    except Exception as e:
+        print(f"{e} while chekcing validity of file {filepath}")
 
 
-if is_valid_file("buy_conditions.txt"):
+try:
+    filepath = "buy_conditions.txt"
+    if is_valid_file(filepath):
+        with open(filepath, 'r') as file:
+            expressions = file.readlines()
+
+        for _, expression in enumerate(expressions):
+            buy_signal = eval(expression)
+            print(buy_signal)
+except Exception as e:
+    print(e)
