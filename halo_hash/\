@@ -1,0 +1,19 @@
+import pandas as pd
+from time import sleep
+
+
+df = pd.read_csv("PFC.csv")
+ohlc = {
+    'open': 'first',
+    'high': 'max',
+    'low': 'min',
+    'close': 'last',
+    'volume': 'sum'
+}
+
+df = df.resample('1Mon', base=15).apply(ohlc)
+df.head()
+
+print(df.tail())
+
+sleep(5)

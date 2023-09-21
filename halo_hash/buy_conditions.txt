@@ -1,1 +1,1 @@
-week_ca.macd(26, 12, 9) > week_ca.macd(26, 12, 9) and week_ca.ema(20) > week_ca.ema(12)
+week_ca.macd(26, 12, 9) > week_ca.macd(14, 12, 6) and week_ca.ema(20) > week_ca.ema(12)
