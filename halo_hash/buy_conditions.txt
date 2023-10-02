@@ -1,1 +1,1 @@
-((hour_ca.ema(20) > hour_ca.ema(12)) and (hour_ca.macd(26, 12, 9) > hour_ca.macd(14, 12, 6)))
+month_ca.close(-1) > month_ca.close(-2) and hour_ca.macd(26, 12, 9) > hour_ca.macd(14, 12, 6)

@@ -10,7 +10,7 @@ import pandas as pd
 def login_and_get_token():
     try:
         api = Finvasia(**CRED)
-        if api.login():
+        if api.authenticate():
             print("Login Successfull")
             return api
     except Exception as e:
@@ -21,6 +21,26 @@ class Candle():
 
     def __init__(self):
         self.inputs = []  # Use the shared data
+
+    def close(self, period=-2):
+        close = self.inputs['close'][period]
+        logging.info(f"{close=} : {period=}")
+        return close
+
+    def high(self, period=-2):
+        high = self.inputs['high'][period]
+        logging.info(f"{high=} : {period}")
+        return high
+
+    def low(self, period=-2):
+        low = self.inputs['low'][period]
+        logging.info(f"{low=} : {period=}")
+        return low
+
+    def volume(self, period=-2):
+        volume = self.inputs['volume'][period]
+        logging.info(f"{volume=} : {period=}")
+        return volume
 
     def macd(self, fastperiod, slowperiod, signalperiod):
         try:
@@ -92,19 +112,14 @@ def validate_expression(expression):
         return False
 
 
-def is_valid_file(filepath):
+def is_valid_file(expression, filepath):
     try:
-        # Read the expressions from the text file
-        with open(filepath, 'r') as file:
-            expressions = file.readlines()
-
         # Validate each expression before evaluating:
-        for idx, expression in enumerate(expressions):
-            if not validate_expression(expression):
-                logging.info(f" {idx + 1}: error in {expression} ")
-                valid = False
+        if not validate_expression(expression):
+            logging.info(f" error in {expression} ")
+            valid = False
         valid = True
-        logging.info(f"Is {filepath} {valid =}")
+        logging.info(f"Is {filepath} {valid =}?")
         return valid
     except Exception as e:
         logging.error(f"{e} while checking validity of file {filepath}")
@@ -152,17 +167,13 @@ def update_inputs(symbol):
     minute_ca.inputs = resample(symbol, '1Min')
 
 
-def is_buy_signal(filepath):
+def is_buy_signal(expressions):
     try:
-        # Read the expressions from the text file
-        with open(filepath, 'r') as file:
-            expressions = file.read()
-            # Validate each expression before evaluating
         buy_signal = eval(expressions)
         logging.info(f"{buy_signal=}")
         return buy_signal
     except Exception as e:
-        logging.error(f"error {e} while generating buy signal")
+        logging.error(f"error {str(e)} while generating buy signal")
 
 
 month_ca = Candle()
@@ -175,10 +186,12 @@ api = login_and_get_token()
 
 
 buy_conditions = "buy_conditions.txt"
-if is_valid_file(buy_conditions):
+with open(buy_conditions, 'r') as file:
+    expressions = file.read().replace("/n", " ")
+if is_valid_file(expressions, buy_conditions):
     symbol_list = ["PFC"]  # Add your symbols here
     for symbol in symbol_list:
         if api:
             download_data(symbol)
         update_inputs(symbol)
-        is_buy_signal(buy_conditions)
+        is_buy_signal(expressions)
