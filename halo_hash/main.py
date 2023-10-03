@@ -5,6 +5,7 @@ from constants import futils, logging, SECDIR, CRED
 from omspy_brokers.finvasia import Finvasia
 import pendulum
 import pandas as pd
+import traceback
 
 
 def login_and_get_token():
@@ -17,30 +18,59 @@ def login_and_get_token():
         print(e)
 
 
-class Candle():
+class Candle:
 
     def __init__(self):
         self.inputs = []  # Use the shared data
 
     def close(self, period=-2):
-        close = self.inputs['close'][period]
-        logging.info(f"{close=} : {period=}")
-        return close
+        if len(self.inputs) >= period:
+            value = self.inputs['close']
+            value = value[period]
+            logging.info(f"{value=} : {period=}")
+            return value
 
     def high(self, period=-2):
-        high = self.inputs['high'][period]
-        logging.info(f"{high=} : {period}")
-        return high
+        value = self.inputs['high'][period]
+        logging.info(f"{value=} : {period}")
+        return value
 
     def low(self, period=-2):
-        low = self.inputs['low'][period]
-        logging.info(f"{low=} : {period=}")
-        return low
+        value = self.inputs['low'][period]
+        logging.info(f"{value=} : {period=}")
+        return value
 
     def volume(self, period=-2):
-        volume = self.inputs['volume'][period]
-        logging.info(f"{volume=} : {period=}")
-        return volume
+        value = self.inputs['volume'][period]
+        logging.info(f"{value=} : {period=}")
+        return value
+
+    def rsi(self, timeperiod):
+        real = abstract.RSI(self.inputs, timeperiod=timeperiod)
+        logging.info(f"{real[-2]=}")
+
+    def bbands(self, timeperiod=5, nbdevup=2, nbdevdn=2, matype=0):
+        upperband, middleband, lowerband = abstract.BBANDS(
+            self.inputs, timeperiod=timeperiod, nbdevup=nbdevup, nbdevdn=nbdevdn, matype=matype)
+        logging.info(upperband[-2], middleband[-2], lowerband[2])
+        return upperband[-2], middleband[-2], lowerband[-2]
+
+    def adx(self, timeperiod=14):
+        real = abstract.ADX(
+            self.inputs['high'], self.inputs['low'], self.inputs['close'], timeperiod=timperiod)
+        return real[-2]
+
+    def stoch(self, fastk_period=5, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0):
+        slowk, slowd = abstract.STOCH(self.inputs['high'],
+                                      self.inputs['low'],
+                                      self.inputs['close'],
+                                      fastk_period=fastk_period,
+                                      slowk_period=slowk_period,
+                                      slowk_matype=slowk_matype,
+                                      slowd_period=slowd_period,
+                                      slowd_matype=slowd_matype
+                                      )
+        return slowk[-2], slowd[-2]
 
     def macd(self, fastperiod, slowperiod, signalperiod):
         try:
@@ -48,8 +78,8 @@ class Candle():
                                              fastperiod=fastperiod,
                                              slowperiod=slowperiod,
                                              signalperiod=signalperiod)
-            logging.debug(f"macd: {macdsignal[-1]}")
-            return macdsignal[-1]
+            logging.debug(f"macd: {macdsignal[-2]}")
+            return macdsignal[-2]
         except Exception as e:
             logging.warning(f"error {e} in macd")
 
@@ -58,10 +88,20 @@ class Candle():
             result = abstract.EMA(
                 self.inputs,
                 timeperiod=timeperiod)
-            logging.debug(f"ema: {result[-1]}")
-            return result[-1]
+            logging.debug(f"ema: {result[-2]}")
+            return result[-2]
         except Exception as e:
             logging.error(e)
+
+    def stochsrsi(self, timeperiod=14, fastk_period=5, fastd_period=3, fastd_matype=0):
+        fastk, fastd = abstract.STOCHRSI(
+            self.inputs,
+            timeperiod=timeperiod,
+            fastk_period=fastk_period,
+            fastd_period=fastd_period,
+            fastd_matype=fastd_matype)
+        print(f" stockrsi: {fastk=} {fastd=} ")
+        return fastk, fastd
 
 
 def resample(symbol, str_time):
@@ -87,6 +127,12 @@ def resample(symbol, str_time):
         'close': np.array(df['close'].tolist()),
     }
     return inputs
+
+
+def ha(symbol, str_time):
+    df = pd.read_csv(f"data/{symbol}_{str_time}.csv")
+    print(df)
+    return 100
 
 
 def validate_expression(expression):
@@ -165,6 +211,7 @@ def update_inputs(symbol):
     day_ca.inputs = resample(symbol, '1D')
     hour_ca.inputs = resample(symbol, '1H')
     minute_ca.inputs = resample(symbol, '1Min')
+    month_ha.inputs = ha(symbol, '1M')
 
 
 def is_buy_signal(expressions):
@@ -173,6 +220,7 @@ def is_buy_signal(expressions):
         logging.info(f"{buy_signal=}")
         return buy_signal
     except Exception as e:
+        traceback.format_exc
         logging.error(f"error {str(e)} while generating buy signal")
 
 
@@ -181,13 +229,15 @@ week_ca = Candle()
 day_ca = Candle()
 hour_ca = Candle()
 minute_ca = Candle()
+month_ha = Candle()
 
 api = login_and_get_token()
 
 
 buy_conditions = "buy_conditions.txt"
 with open(buy_conditions, 'r') as file:
-    expressions = file.read().replace("/n", " ")
+    expressions = file.read().replace("\n", " ")
+
 if is_valid_file(expressions, buy_conditions):
     symbol_list = ["PFC"]  # Add your symbols here
     for symbol in symbol_list:
