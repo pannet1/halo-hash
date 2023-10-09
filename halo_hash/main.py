@@ -1,7 +1,7 @@
 import ast
-from talib import abstract
+import talib
 import numpy as np
-from constants import futils, logging, SECDIR, CRED
+from constants import futils, logging, CRED
 from omspy_brokers.finvasia import Finvasia
 import pendulum
 import pandas as pd
@@ -19,82 +19,129 @@ def login_and_get_token():
 
 
 class Candle:
+    """
+    for examples of ta lib search for programcreek
+    """
 
-    def __init__(self):
+    def __init__(self, period):
+        self.period = period
         self.inputs = []  # Use the shared data
+        self.symbol = ""
 
-    def close(self, period=-2):
-        if len(self.inputs) >= period:
-            value = self.inputs['close']
-            value = value[period]
-            logging.info(f"{value=} : {period=}")
+    def write_col_to_csv(self, column_name, column):
+        csv_file = self.symbol+"_" + self.period
+        df = futils.get_df_fm_csv("data", csv_file)
+        df[column_name] = column
+        df.to_csv("data/"+csv_file)
+
+    def open(self, idx=-2):
+        value = self.inputs['open'][idx]
+        logging.debug(f"open[{idx}]: {value}")
+        return value
+
+    def high(self, idx=-2):
+        value = self.inputs['high'][idx]
+        logging.debug(f"high[{idx}]: {value}")
+        return value
+
+    def low(self, idx=-2):
+        value = self.inputs['low'][idx]
+        logging.debug(f"close[{idx}]: {value}")
+        return value
+
+    def close(self, idx=-2):
+        if len(self.inputs) >= idx:
+            value = self.inputs['close'][idx]
+            logging.debug(f"close[{idx}]: {value}")
             return value
 
-    def high(self, period=-2):
-        value = self.inputs['high'][period]
-        logging.info(f"{value=} : {period}")
+    def volume(self, idx=-2):
+        value = self.inputs['volume'][idx]
+        logging.debug(f"volume{idx}: {value}")
         return value
 
-    def low(self, period=-2):
-        value = self.inputs['low'][period]
-        logging.info(f"{value=} : {period=}")
-        return value
+    def adx(self, timeperiod=5, idx=-2):
+        value = talib.ADX(
+            self.inputs['high'], self.inputs['low'], self.inputs['close'], timeperiod=timeperiod)
+        logging.debug(f"adx[{idx}]: {value[idx]}")
+        self.write_col_to_csv("adx", value)
+        return value[idx]
 
-    def volume(self, period=-2):
-        value = self.inputs['volume'][period]
-        logging.info(f"{value=} : {period=}")
-        return value
+    def plusdi(self, timeperiod=5, idx=-2):
+        value = talib.PLUS_DI(
+            self.inputs['high'], self.inputs['low'],  self.inputs['close'], timeperiod=timeperiod)
+        logging.debug(f"plusdi: {value[idx]}")
+        return value[idx]
 
-    def rsi(self, timeperiod):
-        real = abstract.RSI(self.inputs, timeperiod=timeperiod)
-        logging.info(f"{real[-2]=}")
+    def minusdi(self, timeperiod=5, idx=-2):
+        value = talib.MINUS_DI(
+            self.inputs['high'], self.inputs['low'],  self.inputs['close'], timeperiod=timeperiod)
+        logging.debug(f"minusdi: {value[idx]}")
+        return value[idx]
 
-    def bbands(self, timeperiod=5, nbdevup=2, nbdevdn=2, matype=0):
-        upperband, middleband, lowerband = abstract.BBANDS(
-            self.inputs, timeperiod=timeperiod, nbdevup=nbdevup, nbdevdn=nbdevdn, matype=matype)
-        logging.info(upperband[-2], middleband[-2], lowerband[2])
-        return upperband[-2], middleband[-2], lowerband[-2]
+    def bbands(self, timeperiod=5, nbdev=2, matype=0, idx=-2, band="lower"):
+        nbdev = nbdev * 1.00
+        ub, mb, lb = talib.BBANDS(
+            self.inputs['close'], timeperiod=timeperiod, nbdevup=nbdev, nbdevdn=nbdev, matype=matype)
+        if band == "upper":
+            logging.debug(f"bbands {band}[{idx}]: {ub[idx]}")
+            return ub[idx]
+        elif band == "middle":
+            logging.debug(f"bbands {band}[{idx}]: {mb[idx]}")
+            return mb[idx]
+        else:
+            logging.debug(f"bbands {band}[{idx}]: {lb[idx]}")
+            return lb[idx]
 
-    def adx(self, timeperiod=14):
-        real = abstract.ADX(
-            self.inputs['high'], self.inputs['low'], self.inputs['close'], timeperiod=timperiod)
-        return real[-2]
-
-    def stoch(self, fastk_period=5, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0):
-        slowk, slowd = abstract.STOCH(self.inputs['high'],
-                                      self.inputs['low'],
-                                      self.inputs['close'],
-                                      fastk_period=fastk_period,
-                                      slowk_period=slowk_period,
-                                      slowk_matype=slowk_matype,
-                                      slowd_period=slowd_period,
-                                      slowd_matype=slowd_matype
-                                      )
-        return slowk[-2], slowd[-2]
-
-    def macd(self, fastperiod, slowperiod, signalperiod):
+    def ema(self, timeperiod, idx=-1):
         try:
-            _, macdsignal, _ = abstract.MACD(self.inputs,
-                                             fastperiod=fastperiod,
-                                             slowperiod=slowperiod,
-                                             signalperiod=signalperiod)
-            logging.debug(f"macd: {macdsignal[-2]}")
-            return macdsignal[-2]
-        except Exception as e:
-            logging.warning(f"error {e} in macd")
-
-    def ema(self, timeperiod):
-        try:
-            result = abstract.EMA(
+            result = talib.EMA(
                 self.inputs,
                 timeperiod=timeperiod)
-            logging.debug(f"ema: {result[-2]}")
-            return result[-2]
+            logging.debug(f"ema[{idx}]: {result[idx]}")
+            return result[idx]
         except Exception as e:
             logging.error(e)
 
+    def macd(self, fastperiod, slowperiod, signalperiod, idx=-2, which="hist"):
+        try:
+            line, signal, hist = talib.MACD(self.inputs['close'],
+                                            fastperiod=fastperiod,
+                                            slowperiod=slowperiod,
+                                            signalperiod=signalperiod)
+            logging.debug(
+                f"macd: line[{idx}]: {line[idx]} "
+                f"signal[{idx}]:{signal[idx]} "
+                f"hist[{idx}: {hist[idx]}]"
+            )
+            if which == "line":
+                return line[idx]
+            elif which == "signal":
+                return signal[idx]
+            else:
+                return hist[idx]
+        except Exception as e:
+            logging.error(f"error {e} in macd")
+
+    def rsi(self, timeperiod, idx=-1):
+        value = talib.RSI(self.inputs['close'], timeperiod=timeperiod)
+        logging.debug(f"rsi[{idx}]: {value[idx]}")
+        return value[idx]
+
+    def stoch(self, fastk_period=5, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0, idx=-2):
+        slowk, slowd = talib.STOCH(self.inputs['high'],
+                                   self.inputs['low'],
+                                   self.inputs['close'],
+                                   fastk_period=fastk_period,
+                                   slowk_period=slowk_period,
+                                   slowk_matype=slowk_matype,
+                                   slowd_period=slowd_period,
+                                   slowd_matype=slowd_matype
+                                   )
+        return slowk[idx], slowd[idx]
+
     def stochsrsi(self, timeperiod=14, fastk_period=5, fastd_period=3, fastd_matype=0):
-        fastk, fastd = abstract.STOCHRSI(
+        fastk, fastd = talib.STOCHRSI(
             self.inputs,
             timeperiod=timeperiod,
             fastk_period=fastk_period,
@@ -105,7 +152,8 @@ class Candle:
 
 
 def resample(symbol, str_time):
-    df = pd.read_csv('data/' + symbol + '.csv',
+    filepath = f"data/{symbol}.csv"
+    df = pd.read_csv(filepath,
                      index_col='time',
                      parse_dates=True,
                      dayfirst=True
@@ -132,12 +180,12 @@ def resample(symbol, str_time):
 def ha(symbol, str_time):
     df = pd.read_csv(f"data/{symbol}_{str_time}.csv")
     print(df)
-    return 100
+    pass
 
 
 def validate_expression(expression):
     try:
-        # Parse the expression to an Abstract Syntax Tree (AST)
+        # Parse the expression to an talib Syntax Tree (AST)
         parsed_expression = ast.parse(expression)
 
         # Extract names (identifiers) from the expression
@@ -150,7 +198,7 @@ def validate_expression(expression):
         if valid_names:
             return True
         else:
-            logging.info(f"Invalid names in expression: {expression.strip()}")
+            logging.error(f"Invalid names in expression: {expression.strip()}")
             return False
     except SyntaxError as e:
         logging.error(
@@ -162,55 +210,66 @@ def is_valid_file(expression, filepath):
     try:
         # Validate each expression before evaluating:
         if not validate_expression(expression):
-            logging.info(f" error in {expression} ")
+            logging.error(f" error in {expression} ")
             valid = False
         valid = True
-        logging.info(f"Is {filepath} {valid =}?")
+        logging.debug(f"Is {filepath} {valid =}?")
         return valid
     except Exception as e:
         logging.error(f"{e} while checking validity of file {filepath}")
 
 
-def download_data(sym):
-    df_price = pd.DataFrame()
-    tkn = api.instrument_symbol("NSE", sym)
-    lastBusDay = pendulum.now()
-    fromBusDay = lastBusDay.subtract(months=3)
-    lastBusDay = lastBusDay.replace(
-        hour=0, minute=0, second=0, microsecond=0)
-    fromBusDay = fromBusDay.replace(
-        hour=0, minute=0, second=0, microsecond=0)
-    resp = api.finvasia.get_time_price_series(
-        exchange='NSE', token=tkn, starttime=fromBusDay.timestamp(),
-        endtime=lastBusDay.timestamp(), interval=1
-    )
-    if resp is not None:
-        lst_price = []
-        for ret in resp:
-            dct = {
-                'time': ret['time'],
-                'open': ret['into'],
-                'high': ret['inth'],
-                'low': ret['intl'],
-                'close': ret['intc'],
-                'volume': ret['v'],
-            }
-            lst_price.append(dct)
-        # sort DataFrame in descending order
-        df_price = pd.DataFrame(lst_price).sort_index(ascending=False)
-        df_price.to_csv("data/" + sym + ".csv", index=False)
-        return True
+def download_data(symbol):
+    filepath = f"data/{symbol}.csv"
+    if not futils.is_file_not_2day(filepath):
+        logging.debug(f"{filepath} modified today")
+        df_price = pd.DataFrame()
+        tkn = api.instrument_symbol("NSE", symbol)
+        lastBusDay = pendulum.now()
+        fromBusDay = lastBusDay.subtract(months=24)
+        lastBusDay = lastBusDay.replace(
+            hour=0, minute=0, second=0, microsecond=0)
+        fromBusDay = fromBusDay.replace(
+            hour=0, minute=0, second=0, microsecond=0)
+        resp = api.finvasia.get_time_price_series(
+            exchange='NSE', token=tkn, starttime=fromBusDay.timestamp(),
+            endtime=lastBusDay.timestamp(), interval=1
+        )
+        if resp is not None:
+            lst_price = []
+            for ret in resp:
+                dct = {
+                    'time': ret['time'],
+                    'open': ret['into'],
+                    'high': ret['inth'],
+                    'low': ret['intl'],
+                    'close': ret['intc'],
+                    'volume': ret['v'],
+                }
+                lst_price.append(dct)
+            # sort DataFrame in descending order
+            df_price = pd.DataFrame(lst_price).sort_index(ascending=False)
+            df_price.to_csv(filepath, index=False)
+            return True
+        else:
+            logging.warning(f"no data for {symbol}")
+            return False
     else:
-        logging.debug(f"no data for {sym}")
-        return False
+        logging.debug(f"using {filepath} already modfied today")
+        return True
 
 
 def update_inputs(symbol):
     month_ca.inputs = resample(symbol, '1M')
+    month_ca.symbol = symbol
     week_ca.inputs = resample(symbol, '1W')
+    week_ca.symbol = symbol
     day_ca.inputs = resample(symbol, '1D')
+    day_ca.symbol = symbol
     hour_ca.inputs = resample(symbol, '1H')
+    hour_ca.symbol = symbol
     minute_ca.inputs = resample(symbol, '1Min')
+    minute_ca.symbol = symbol
     month_ha.inputs = ha(symbol, '1M')
 
 
@@ -224,15 +283,46 @@ def is_buy_signal(expressions):
         logging.error(f"error {str(e)} while generating buy signal")
 
 
-month_ca = Candle()
-week_ca = Candle()
-day_ca = Candle()
-hour_ca = Candle()
-minute_ca = Candle()
-month_ha = Candle()
+month_ca = Candle("1M")
+week_ca = Candle("1W")
+day_ca = Candle("1D")
+hour_ca = Candle("1H")
+minute_ca = Candle("1Min")
+month_ha = Candle("1M")
 
 api = login_and_get_token()
 
+
+"""
+if (
+month_ca.close(-2) < month_ca.close(-3)
+and month_ca.adx(3) > 5
+and month_ca.rsi(3) > 30
+and month_ca.bbands(5, 2, 0, -1, "upper") > month_ca.bbands(5, 2, 0, -2, "upper")
+and month_ca.macd(5,8, 3, -1, "line") > month_ca.macd(5, 8, 3, -2, "line")
+and month_ca.plusdi(5) > month_ca.minusdi(5)
+):
+
+    • [0] Monthly RSI(14) Greater than Number 30.
+    • [0] Monthly Upper Bollinger band(20, 2) greater than 1 month ago Upper Bollinger band(20, 2)
+    • [0] Monthly ADX(14) greater than Number 5
+    • [0] Monthly ADX DI Positive(14) greater than[0] Monthly ADX DI Negative(14)
+    • [0] Monthly MACD line(26, 12, 9) Greater than[0] Monthly signal(26, 12, 9)
+    • [0] Monthly MACD line(26, 12, 9) greater than 1 month ago MACD line(26, 12, 9)
+    • [0] Weekly RSI(14) Greater than Number 30
+    • [0] Weekly HA close is greater than Weekly HA Open.
+    • [0] Weekly ADX(14) greater than Number 5
+    • [0] Weekly Close greater than Weekly EMA 200 (Weekly Close, 200)
+    • [0] Weekly MACD line(26, 12, 9) greater than Number 0.
+    • [0] Weekly MACD line(26, 12, 9) greater than 1 week ago MACD line(26, 12, 9)
+    • 1 week ago MACD line(26, 12, 9) greater than 2 week ago MACD line(26, 12, 9)
+    • [0] Daily RSI(14) less than Number 70
+    • [0] Daily RSI(14) greater than number 30
+    • [0] Daily StochRSI(14) less than number 20
+    • [0] Daily EMA 200 greater than 1 Day ago EMA 200.
+    • 1 Day ago EMA 200 greater than 2 Day ago EMA 200.
+    • 2 Day ago EMA 200 greater than 3 Day ago EMA 200.
+"""
 
 buy_conditions = "buy_conditions.txt"
 with open(buy_conditions, 'r') as file:

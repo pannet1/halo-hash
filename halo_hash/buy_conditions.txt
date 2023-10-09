@@ -1,25 +1,7 @@
-month_ca.close(-1) > month_ca.close(-2) and 
-hour_ca.macd(26, 12, 9) > hour_ca.macd(14, 12, 6)
-
-"""
-    • [0] Monthly RSI (14) Greater than Number 30.
-    • [0] Monthly Upper Bollinger band (20,2) greater than 1 month ago Upper Bollinger band (20,2)
-    • [0] Monthly ADX (14) greater than Number 5
-    • [0] Monthly ADX DI Positive (14) greater than [0] Monthly ADX DI Negative (14)
-    • [0] Monthly MACD line (26,12,9) Greater than [0] Monthly signal (26,12,9)
-    • [0] Monthly MACD line (26,12,9) greater than 1 month ago MACD line (26,12,9)
-    • [0] Weekly RSI (14) Greater than Number 30
-    • [0] Weekly HA close is greater than Weekly HA Open.
-    • [0] Weekly ADX (14) greater than Number 5
-    • [0] Weekly Close greater than Weekly EMA 200 (Weekly Close, 200)
-    • [0] Weekly MACD line (26,12,9) greater than Number 0.
-    • [0] Weekly MACD line (26,12,9) greater than 1 week ago MACD line (26,12,9)
-    • 1 week ago MACD line (26,12,9) greater than 2 week ago MACD line (26,12,9)
-    • [0] Daily RSI (14) less than Number 70
-    • [0] Daily RSI (14) greater than number 30
-    • [0] Daily StochRSI (14) less than number 20
-    • [0] Daily EMA 200 greater than 1 Day ago EMA 200.
-    • 1 Day ago EMA 200 greater than 2 Day ago EMA 200.
-    • 2 Day ago EMA 200 greater than 3 Day ago EMA 200.
-"""
+month_ca.close(-2) < month_ca.close(-3)
+and month_ca.adx(3) > 5
+and month_ca.plusdi(5) > month_ca.minusdi(5)
+and month_ca.macd(5,8, 3, -1, "line") > month_ca.macd(5, 8, 3, -2, "line")
+and month_ca.rsi(3) > 30
+and month_ca.bbands(5, 2, 0, -1, "upper") > month_ca.bbands(5, 2, 0, -2, "upper")
 
