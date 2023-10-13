@@ -1,6 +1,6 @@
 # Dependencies of dependencies
 pyyaml
-pandas
+pandas==2.3.1
 NorenRestApiPy
 requests
 websocket_client
@@ -10,4 +10,3 @@ pyotp
 git+https://github.com/pannet1/omspy
 git+https://github.com/pannet1/omspy-brokers
 git+https://github.com/pannet1/toolkit
-# Current project dependencies
