@@ -28,11 +28,18 @@ class Candle:
         self.inputs = []  # Use the shared data
         self.symbol = ""
 
-    def write_col_to_csv(self, column_name, column):
-        csv_file = self.symbol+"_" + self.period
-        df = futils.get_df_fm_csv("data", csv_file)
-        df[column_name] = column
-        df.to_csv("data/"+csv_file)
+    def write_col_to_csv(self, column_name: str, column):
+        try:
+            pass
+            """
+            csv_file = "data/" + self.symbol+"_" + self.period + ".csv"
+            df = pd.read_csv(csv_file).reset_index()
+            df.drop(df[column_name], axis=1, inplace=True)
+            df[column_name] = column
+            df.to_csv(csv_file, index=False)
+            """
+        except Exception as e:
+            print(f"while writing indicator to csv {e}")
 
     def open(self, idx=-2):
         value = self.inputs['open'][idx]
@@ -60,59 +67,75 @@ class Candle:
         logging.debug(f"volume{idx}: {value}")
         return value
 
+    # Update the adx method
     def adx(self, timeperiod=5, idx=-2):
         value = talib.ADX(
             self.inputs['high'], self.inputs['low'], self.inputs['close'], timeperiod=timeperiod)
-        logging.debug(f"adx[{idx}]: {value[idx]}")
         self.write_col_to_csv("adx", value)
+        logging.debug(f"adx[{idx}]: {value[idx]}")
         return value[idx]
 
+    # Update the plusdi method
     def plusdi(self, timeperiod=5, idx=-2):
         value = talib.PLUS_DI(
             self.inputs['high'], self.inputs['low'],  self.inputs['close'], timeperiod=timeperiod)
+        self.write_col_to_csv("plusdi", value)
         logging.debug(f"plusdi: {value[idx]}")
         return value[idx]
 
+    # Update the minusdi method
     def minusdi(self, timeperiod=5, idx=-2):
         value = talib.MINUS_DI(
             self.inputs['high'], self.inputs['low'],  self.inputs['close'], timeperiod=timeperiod)
+        self.write_col_to_csv("minusdi", value)
         logging.debug(f"minusdi: {value[idx]}")
         return value[idx]
 
+    # Update the bbands method for upper, middle, and lower
     def bbands(self, timeperiod=5, nbdev=2, matype=0, idx=-2, band="lower"):
         nbdev = nbdev * 1.00
         ub, mb, lb = talib.BBANDS(
             self.inputs['close'], timeperiod=timeperiod, nbdevup=nbdev, nbdevdn=nbdev, matype=matype)
+
         if band == "upper":
+            self.write_col_to_csv("bbands_upper", ub)
             logging.debug(f"bbands {band}[{idx}]: {ub[idx]}")
             return ub[idx]
         elif band == "middle":
+            self.write_col_to_csv("bbands_middle", mb)
             logging.debug(f"bbands {band}[{idx}]: {mb[idx]}")
             return mb[idx]
         else:
+            self.write_col_to_csv("bbands_lower", lb)
             logging.debug(f"bbands {band}[{idx}]: {lb[idx]}")
             return lb[idx]
 
+    # Update the ema method
     def ema(self, timeperiod, idx=-1):
         try:
             result = talib.EMA(
                 self.inputs,
                 timeperiod=timeperiod)
+            self.write_col_to_csv("ema", result)
             logging.debug(f"ema[{idx}]: {result[idx]}")
             return result[idx]
         except Exception as e:
             logging.error(e)
 
+    # Update the macd method for line, signal, and hist
     def macd(self, fastperiod, slowperiod, signalperiod, idx=-2, which="hist"):
         try:
             line, signal, hist = talib.MACD(self.inputs['close'],
                                             fastperiod=fastperiod,
                                             slowperiod=slowperiod,
                                             signalperiod=signalperiod)
+            self.write_col_to_csv("macd_line", line)
+            self.write_col_to_csv("macd_signal", signal)
+            self.write_col_to_csv("macd_hist", hist)
             logging.debug(
                 f"macd: line[{idx}]: {line[idx]} "
-                f"signal[{idx}]:{signal[idx]} "
-                f"hist[{idx}: {hist[idx]}]"
+                f"signal[{idx}]: {signal[idx]} "
+                f"hist[{idx}]: {hist[idx]}"
             )
             if which == "line":
                 return line[idx]
@@ -123,11 +146,14 @@ class Candle:
         except Exception as e:
             logging.error(f"error {e} in macd")
 
+    # Update the rsi method
     def rsi(self, timeperiod, idx=-1):
         value = talib.RSI(self.inputs['close'], timeperiod=timeperiod)
+        self.write_col_to_csv("rsi", value)
         logging.debug(f"rsi[{idx}]: {value[idx]}")
         return value[idx]
 
+    # Update the stoch method
     def stoch(self, fastk_period=5, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0, idx=-2):
         slowk, slowd = talib.STOCH(self.inputs['high'],
                                    self.inputs['low'],
@@ -138,8 +164,11 @@ class Candle:
                                    slowd_period=slowd_period,
                                    slowd_matype=slowd_matype
                                    )
+        self.write_col_to_csv("stoch_slowk", slowk)
+        self.write_col_to_csv("stoch_slowd", slowd)
         return slowk[idx], slowd[idx]
 
+    # Update the stochsrsi method
     def stochsrsi(self, timeperiod=14, fastk_period=5, fastd_period=3, fastd_matype=0):
         fastk, fastd = talib.STOCHRSI(
             self.inputs,
@@ -147,7 +176,9 @@ class Candle:
             fastk_period=fastk_period,
             fastd_period=fastd_period,
             fastd_matype=fastd_matype)
-        print(f" stockrsi: {fastk=} {fastd=} ")
+        self.write_col_to_csv("stochrsi_fastk", fastk)
+        self.write_col_to_csv("stochrsi_fastd", fastd)
+        print(f" stockrsi: {fastk=} {fastd=}")
         return fastk, fastd
 
 
@@ -166,9 +197,10 @@ def resample(symbol, str_time):
         'volume': 'sum'
     }
     df = df.resample(str_time, origin='start').apply(ohlc)
-    df = df.drop(df[df.open.isnull()].index)
+    # df = df.drop(df[df.open.isnull()].index)
     df.to_csv(f"data/{symbol}_{str_time}.csv")
     inputs = {
+        'time': df.index.tolist(),
         'open': np.array(df['open'].tolist()),
         'high': np.array(df['high'].tolist()),
         'low': np.array(df['low'].tolist()),
@@ -330,6 +362,7 @@ with open(buy_conditions, 'r') as file:
 
 if is_valid_file(expressions, buy_conditions):
     symbol_list = ["PFC"]  # Add your symbols here
+
     for symbol in symbol_list:
         if api:
             download_data(symbol)
