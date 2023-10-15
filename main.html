@@ -1,0 +1,216 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module main</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>main</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/home/pannet1/Programs/py/finvasia/halo-hash/halo_hash/main.py">/home/pannet1/Programs/py/finvasia/halo-hash/halo_hash/main.py</a></font></td></tr></table>
+    <p></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="ast.html">ast</a><br>
+<a href="numpy.html">numpy</a><br>
+</td><td width="25%" valign=top><a href="pandas.html">pandas</a><br>
+<a href="pendulum.html">pendulum</a><br>
+</td><td width="25%" valign=top><a href="talib.html">talib</a><br>
+<a href="traceback.html">traceback</a><br>
+</td><td width="25%" valign=top></td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ee77aa">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Classes</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#ee77aa"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl>
+<dt><font face="helvetica, arial"><a href="builtins.html#object">builtins.object</a>
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="main.html#Candle">Candle</a>
+</font></dt></dl>
+</dd>
+</dl>
+ <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Candle">class <strong>Candle</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Candle">Candle</a>(period:&nbsp;str)<br>
+&nbsp;<br>
+<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Candle-__init__"><strong>__init__</strong></a>(self, period: str)</dt><dd><tt>Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</tt></dd></dl>
+
+<dl><dt><a name="Candle-adx"><strong>adx</strong></a>(self, timeperiod=5, candle_number=-2)</dt><dd><tt>Calculate&nbsp;the&nbsp;Average&nbsp;Directional&nbsp;Index&nbsp;(ADX)&nbsp;for&nbsp;a&nbsp;given&nbsp;candle.<br>
+&nbsp;<br>
+Parameters:<br>
+-&nbsp;timeperiod&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;ADX&nbsp;calculation.<br>
+-&nbsp;candle_number&nbsp;(int):&nbsp;The&nbsp;candle&nbsp;number&nbsp;for&nbsp;which&nbsp;to&nbsp;calculate&nbsp;ADX.<br>
+&nbsp;&nbsp;A&nbsp;negative&nbsp;value&nbsp;indicates&nbsp;counting&nbsp;from&nbsp;the&nbsp;most&nbsp;recent&nbsp;candle.<br>
+&nbsp;<br>
+Returns:<br>
+-&nbsp;float:&nbsp;The&nbsp;ADX&nbsp;value&nbsp;for&nbsp;the&nbsp;specified&nbsp;candle.</tt></dd></dl>
+
+<dl><dt><a name="Candle-bbands"><strong>bbands</strong></a>(self, timeperiod=5, nbdev=2, matype=0, candle_number=-2, band='lower')</dt><dd><tt>Calculate&nbsp;Bollinger&nbsp;Bands&nbsp;(BBANDS)&nbsp;for&nbsp;a&nbsp;given&nbsp;candle.<br>
+&nbsp;<br>
+Parameters:<br>
+-&nbsp;timeperiod&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;BBANDS&nbsp;calculation.<br>
+-&nbsp;nbdev&nbsp;(float):&nbsp;The&nbsp;number&nbsp;of&nbsp;standard&nbsp;deviations&nbsp;to&nbsp;use.<br>
+-&nbsp;matype&nbsp;(int):&nbsp;The&nbsp;type&nbsp;of&nbsp;moving&nbsp;average&nbsp;to&nbsp;use.<br>
+-&nbsp;candle_number&nbsp;(int):&nbsp;The&nbsp;candle&nbsp;number&nbsp;for&nbsp;which&nbsp;to&nbsp;calculate&nbsp;BBANDS.&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;negative&nbsp;value&nbsp;indicates&nbsp;counting&nbsp;from&nbsp;the&nbsp;most&nbsp;recent&nbsp;candle.<br>
+-&nbsp;band&nbsp;(str):&nbsp;The&nbsp;type&nbsp;of&nbsp;band&nbsp;to&nbsp;calculate&nbsp;('upper',&nbsp;'middle',&nbsp;or&nbsp;'lower').<br>
+&nbsp;<br>
+Returns:<br>
+-&nbsp;float:&nbsp;The&nbsp;specified&nbsp;BBANDS&nbsp;value&nbsp;for&nbsp;the&nbsp;specified&nbsp;candle.</tt></dd></dl>
+
+<dl><dt><a name="Candle-close"><strong>close</strong></a>(self, candle_number=-2)</dt></dl>
+
+<dl><dt><a name="Candle-ema"><strong>ema</strong></a>(self, timeperiod=5, candle_number=-1)</dt><dd><tt>Calculate&nbsp;the&nbsp;Exponential&nbsp;Moving&nbsp;Average&nbsp;(EMA)&nbsp;for&nbsp;a&nbsp;given&nbsp;candle.<br>
+&nbsp;<br>
+Parameters:<br>
+-&nbsp;timeperiod&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;EMA&nbsp;calculation.<br>
+-&nbsp;candle_number&nbsp;(int):&nbsp;The&nbsp;candle&nbsp;number&nbsp;for&nbsp;which&nbsp;to&nbsp;calculate&nbsp;EMA.&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;negative&nbsp;value&nbsp;indicates&nbsp;counting&nbsp;from&nbsp;the&nbsp;most&nbsp;recent&nbsp;candle.<br>
+&nbsp;<br>
+Returns:<br>
+-&nbsp;float:&nbsp;The&nbsp;EMA&nbsp;value&nbsp;for&nbsp;the&nbsp;specified&nbsp;candle.</tt></dd></dl>
+
+<dl><dt><a name="Candle-high"><strong>high</strong></a>(self, candle_number=-2)</dt></dl>
+
+<dl><dt><a name="Candle-low"><strong>low</strong></a>(self, candle_number=-2)</dt></dl>
+
+<dl><dt><a name="Candle-macd"><strong>macd</strong></a>(self, fastperiod=5, slowperiod=5, signalperiod=5, candle_number=-2, which='hist')</dt><dd><tt>Calculate&nbsp;Moving&nbsp;Average&nbsp;Convergence&nbsp;Divergence&nbsp;(MACD)&nbsp;values&nbsp;for&nbsp;a&nbsp;given&nbsp;candle.<br>
+&nbsp;<br>
+Parameters:<br>
+-&nbsp;fastperiod&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;fast&nbsp;EMA&nbsp;calculation.<br>
+-&nbsp;slowperiod&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;slow&nbsp;EMA&nbsp;calculation.<br>
+-&nbsp;signalperiod&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;the&nbsp;signal&nbsp;line&nbsp;calculation.<br>
+-&nbsp;candle_number&nbsp;(int):&nbsp;The&nbsp;candle&nbsp;number&nbsp;for&nbsp;which&nbsp;to&nbsp;calculate&nbsp;MACD&nbsp;values.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;negative&nbsp;value&nbsp;indicates&nbsp;counting&nbsp;from&nbsp;the&nbsp;most&nbsp;recent&nbsp;candle.<br>
+-&nbsp;which&nbsp;(str):&nbsp;The&nbsp;component&nbsp;of&nbsp;MACD&nbsp;to&nbsp;retrieve&nbsp;('line',&nbsp;'signal',&nbsp;or&nbsp;'hist').<br>
+&nbsp;<br>
+Returns:<br>
+-&nbsp;float:&nbsp;The&nbsp;specified&nbsp;MACD&nbsp;component&nbsp;value&nbsp;for&nbsp;the&nbsp;specified&nbsp;candle.</tt></dd></dl>
+
+<dl><dt><a name="Candle-minusdi"><strong>minusdi</strong></a>(self, timeperiod=5, candle_number=-2)</dt><dd><tt>Calculate&nbsp;the&nbsp;Minus&nbsp;Directional&nbsp;Indicator&nbsp;(MINUS_DI)&nbsp;for&nbsp;a&nbsp;given&nbsp;candle.<br>
+&nbsp;<br>
+Parameters:<br>
+-&nbsp;timeperiod&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;MINUS_DI&nbsp;calculation.<br>
+-&nbsp;candle_number&nbsp;(int):&nbsp;The&nbsp;candle&nbsp;number&nbsp;for&nbsp;which&nbsp;to&nbsp;calculate&nbsp;MINUS_DI.&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;negative&nbsp;value&nbsp;indicates&nbsp;counting&nbsp;from&nbsp;the&nbsp;most&nbsp;recent&nbsp;candle.<br>
+&nbsp;<br>
+Returns:<br>
+-&nbsp;float:&nbsp;The&nbsp;MINUS_DI&nbsp;value&nbsp;for&nbsp;the&nbsp;specified&nbsp;candle.</tt></dd></dl>
+
+<dl><dt><a name="Candle-open"><strong>open</strong></a>(self, candle_number=-2)</dt></dl>
+
+<dl><dt><a name="Candle-plusdi"><strong>plusdi</strong></a>(self, timeperiod=5, candle_number=-2)</dt><dd><tt>Calculate&nbsp;the&nbsp;Plus&nbsp;Directional&nbsp;Indicator&nbsp;(PLUS_DI)&nbsp;for&nbsp;a&nbsp;given&nbsp;candle.<br>
+&nbsp;<br>
+Parameters:<br>
+-&nbsp;timeperiod&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;PLUS_DI&nbsp;calculation.<br>
+-&nbsp;candle_number&nbsp;(int):&nbsp;The&nbsp;candle&nbsp;number&nbsp;for&nbsp;which&nbsp;to&nbsp;calculate&nbsp;PLUS_DI.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;negative&nbsp;value&nbsp;indicates&nbsp;counting&nbsp;from&nbsp;the&nbsp;most&nbsp;recent&nbsp;candle.<br>
+&nbsp;<br>
+Returns:<br>
+-&nbsp;float:&nbsp;The&nbsp;PLUS_DI&nbsp;value&nbsp;for&nbsp;the&nbsp;specified&nbsp;candle.</tt></dd></dl>
+
+<dl><dt><a name="Candle-rsi"><strong>rsi</strong></a>(self, timeperiod, candle_number=-1)</dt><dd><tt>Calculate&nbsp;the&nbsp;Relative&nbsp;Strength&nbsp;Index&nbsp;(RSI)&nbsp;for&nbsp;a&nbsp;given&nbsp;candle.<br>
+&nbsp;<br>
+Parameters:<br>
+-&nbsp;timeperiod&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;RSI&nbsp;calculation.<br>
+-&nbsp;candle_number&nbsp;(int):&nbsp;The&nbsp;candle&nbsp;number&nbsp;for&nbsp;which&nbsp;to&nbsp;calculate&nbsp;RSI.&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;negative&nbsp;value&nbsp;indicates&nbsp;counting&nbsp;from&nbsp;the&nbsp;most&nbsp;recent&nbsp;candle.<br>
+&nbsp;<br>
+Returns:<br>
+-&nbsp;float:&nbsp;The&nbsp;RSI&nbsp;value&nbsp;for&nbsp;the&nbsp;specified&nbsp;candle.</tt></dd></dl>
+
+<dl><dt><a name="Candle-stoch"><strong>stoch</strong></a>(self, fastk_period=5, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0, candle_number=-2)</dt><dd><tt>Calculate&nbsp;the&nbsp;Stochastic&nbsp;Oscillator&nbsp;(STOCH)&nbsp;values&nbsp;for&nbsp;a&nbsp;given&nbsp;candle.<br>
+&nbsp;<br>
+Parameters:<br>
+-&nbsp;fastk_period&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;fast&nbsp;%K&nbsp;calculation.<br>
+-&nbsp;slowk_period&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;slow&nbsp;%K&nbsp;calculation.<br>
+-&nbsp;slowk_matype&nbsp;(int):&nbsp;The&nbsp;type&nbsp;of&nbsp;moving&nbsp;average&nbsp;to&nbsp;use&nbsp;for&nbsp;slow&nbsp;%K.<br>
+-&nbsp;slowd_period&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;%D&nbsp;calculation.<br>
+-&nbsp;slowd_matype&nbsp;(int):&nbsp;The&nbsp;type&nbsp;of&nbsp;moving&nbsp;average&nbsp;to&nbsp;use&nbsp;for&nbsp;%D.<br>
+-&nbsp;candle_number&nbsp;(int):&nbsp;The&nbsp;candle&nbsp;number&nbsp;for&nbsp;which&nbsp;to&nbsp;calculate&nbsp;STOCH&nbsp;values.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;negative&nbsp;value&nbsp;indicates&nbsp;counting&nbsp;from&nbsp;the&nbsp;most&nbsp;recent&nbsp;candle.<br>
+&nbsp;<br>
+Returns:<br>
+-&nbsp;float:&nbsp;The&nbsp;specified&nbsp;STOCH&nbsp;value&nbsp;for&nbsp;the&nbsp;specified&nbsp;candle.</tt></dd></dl>
+
+<dl><dt><a name="Candle-stochsrsi"><strong>stochsrsi</strong></a>(self, timeperiod=14, fastk_period=5, fastd_period=3, fastd_matype=0, candle_number=-2, which='fastk')</dt><dd><tt>Calculate&nbsp;Stochastic&nbsp;RSI&nbsp;(STOCHRSI)&nbsp;values&nbsp;for&nbsp;a&nbsp;given&nbsp;candle.<br>
+&nbsp;<br>
+Parameters:<br>
+-&nbsp;timeperiod&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;RSI&nbsp;calculation.<br>
+-&nbsp;fastk_period&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;fast&nbsp;%K&nbsp;calculation.<br>
+-&nbsp;fastd_period&nbsp;(int):&nbsp;The&nbsp;time&nbsp;period&nbsp;for&nbsp;fast&nbsp;%D&nbsp;calculation.<br>
+-&nbsp;fastd_matype&nbsp;(int):&nbsp;The&nbsp;type&nbsp;of&nbsp;moving&nbsp;average&nbsp;to&nbsp;use&nbsp;for&nbsp;fast&nbsp;%D.<br>
+-&nbsp;candle_number&nbsp;(int):&nbsp;The&nbsp;candle&nbsp;number&nbsp;for&nbsp;which&nbsp;to&nbsp;calculate&nbsp;STOCHRSI&nbsp;values.<br>
+&nbsp;&nbsp;A&nbsp;negative&nbsp;value&nbsp;indicates&nbsp;counting&nbsp;from&nbsp;the&nbsp;most&nbsp;recent&nbsp;candle.<br>
+-&nbsp;which&nbsp;(str):&nbsp;The&nbsp;component&nbsp;of&nbsp;STOCHRSI&nbsp;to&nbsp;retrieve&nbsp;('fastk'&nbsp;or&nbsp;'fastd').<br>
+&nbsp;<br>
+Returns:<br>
+-&nbsp;float:&nbsp;The&nbsp;specified&nbsp;STOCHRSI&nbsp;component&nbsp;value&nbsp;for&nbsp;the&nbsp;specified&nbsp;candle.</tt></dd></dl>
+
+<dl><dt><a name="Candle-volume"><strong>volume</strong></a>(self, candle_number=-2)</dt></dl>
+
+<dl><dt><a name="Candle-write_col_to_csv"><strong>write_col_to_csv</strong></a>(self, column_name: str, column)</dt></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-download_data"><strong>download_data</strong></a>(symbol)</dt></dl>
+ <dl><dt><a name="-ha"><strong>ha</strong></a>(symbol, str_time)</dt></dl>
+ <dl><dt><a name="-is_buy_signal"><strong>is_buy_signal</strong></a>(expressions)</dt></dl>
+ <dl><dt><a name="-is_valid_file"><strong>is_valid_file</strong></a>(expression, filepath)</dt></dl>
+ <dl><dt><a name="-login_and_get_token"><strong>login_and_get_token</strong></a>()</dt></dl>
+ <dl><dt><a name="-resample"><strong>resample</strong></a>(symbol, str_time)</dt></dl>
+ <dl><dt><a name="-update_inputs"><strong>update_inputs</strong></a>(symbol)</dt></dl>
+ <dl><dt><a name="-validate_expression"><strong>validate_expression</strong></a>(expression)</dt></dl>
+</td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#55aa55">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Data</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#55aa55"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><strong>CRED</strong> = {'app_key': '33ce8243a4ade14351659b7a28445b2c', 'imei': 'abc1234', 'password': 'Nitesh@123', 'pin': '6Y3455H7DD27N2523644C42BCNZ3U74O', 'user_id': 'N0358', 'vendor_code': 'N0358_U'}<br>
+<strong>api</strong> = &lt;omspy_brokers.finvasia.Finvasia object&gt;<br>
+<strong>buy_conditions</strong> = 'buy_conditions.txt'<br>
+<strong>day_ca</strong> = &lt;main.Candle object&gt;<br>
+<strong>expressions</strong> = 'month_ca.close(-2) &lt; month_ca.close(-3) and mont...upper") &gt; month_ca.bbands(5, 2, 0, -2, "upper")  '<br>
+<strong>file</strong> = &lt;_io.TextIOWrapper name='buy_conditions.txt' mode='r' encoding='UTF-8'&gt;<br>
+<strong>futils</strong> = &lt;toolkit.fileutils.Fileutils object&gt;<br>
+<strong>hour_ca</strong> = &lt;main.Candle object&gt;<br>
+<strong>logging</strong> = &lt;Logger toolkit.logger (DEBUG)&gt;<br>
+<strong>minute_ca</strong> = &lt;main.Candle object&gt;<br>
+<strong>month_ca</strong> = &lt;main.Candle object&gt;<br>
+<strong>month_ha</strong> = &lt;main.Candle object&gt;<br>
+<strong>symbol</strong> = 'PFC'<br>
+<strong>symbol_list</strong> = ['PFC']<br>
+<strong>week_ca</strong> = &lt;main.Candle object&gt;</td></tr></table>
+</body></html>

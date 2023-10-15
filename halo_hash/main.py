@@ -8,6 +8,11 @@ import pandas as pd
 import traceback
 
 
+"""
+for examples of ta lib search for programcreek
+"""
+
+
 def login_and_get_token():
     try:
         api = Finvasia(**CRED)
@@ -19,11 +24,8 @@ def login_and_get_token():
 
 
 class Candle:
-    """
-    for examples of ta lib search for programcreek
-    """
 
-    def __init__(self, period):
+    def __init__(self, period: str):
         self.period = period
         self.inputs = []  # Use the shared data
         self.symbol = ""
@@ -41,89 +43,158 @@ class Candle:
         except Exception as e:
             print(f"while writing indicator to csv {e}")
 
-    def open(self, idx=-2):
-        value = self.inputs['open'][idx]
-        logging.debug(f"open[{idx}]: {value}")
+    def open(self, candle_number=-2):
+        value = self.inputs['open'][candle_number]
+        logging.debug(f"open[{candle_number}]: {value}")
         return value
 
-    def high(self, idx=-2):
-        value = self.inputs['high'][idx]
-        logging.debug(f"high[{idx}]: {value}")
+    def high(self, candle_number=-2):
+        value = self.inputs['high'][candle_number]
+        logging.debug(f"high[{candle_number}]: {value}")
         return value
 
-    def low(self, idx=-2):
-        value = self.inputs['low'][idx]
-        logging.debug(f"close[{idx}]: {value}")
+    def low(self, candle_number=-2):
+        value = self.inputs['low'][candle_number]
+        logging.debug(f"close[{candle_number}]: {value}")
         return value
 
-    def close(self, idx=-2):
-        if len(self.inputs) >= idx:
-            value = self.inputs['close'][idx]
-            logging.debug(f"close[{idx}]: {value}")
+    def close(self, candle_number=-2):
+        if len(self.inputs) >= candle_number:
+            value = self.inputs['close'][candle_number]
+            logging.debug(f"close[{candle_number}]: {value}")
             return value
 
-    def volume(self, idx=-2):
-        value = self.inputs['volume'][idx]
-        logging.debug(f"volume{idx}: {value}")
+    def volume(self, candle_number=-2):
+        value = self.inputs['volume'][candle_number]
+        logging.debug(f"volume{candle_number}: {value}")
         return value
 
-    # Update the adx method
-    def adx(self, timeperiod=5, idx=-2):
+    def adx(self, timeperiod=5, candle_number=-2):
+        """
+        Calculate the Average Directional Index (ADX) for a given candle.
+
+        Parameters:
+        - timeperiod (int): The time period for ADX calculation.
+        - candle_number (int): The candle number for which to calculate ADX.
+          A negative value indicates counting from the most recent candle.
+
+        Returns:
+        - float: The ADX value for the specified candle.
+        """
         value = talib.ADX(
             self.inputs['high'], self.inputs['low'], self.inputs['close'], timeperiod=timeperiod)
         self.write_col_to_csv("adx", value)
-        logging.debug(f"adx[{idx}]: {value[idx]}")
-        return value[idx]
+        logging.debug(f"adx[{candle_number}]: {value[candle_number]}")
+        return value[candle_number]
 
-    # Update the plusdi method
-    def plusdi(self, timeperiod=5, idx=-2):
+    def plusdi(self, timeperiod=5, candle_number=-2):
+        """
+        Calculate the Plus Directional Indicator (PLUS_DI) for a given candle.
+
+        Parameters:
+        - timeperiod (int): The time period for PLUS_DI calculation.
+        - candle_number (int): The candle number for which to calculate PLUS_DI.
+                              A negative value indicates counting from the most recent candle.
+
+        Returns:
+        - float: The PLUS_DI value for the specified candle.
+        """
         value = talib.PLUS_DI(
             self.inputs['high'], self.inputs['low'],  self.inputs['close'], timeperiod=timeperiod)
         self.write_col_to_csv("plusdi", value)
-        logging.debug(f"plusdi: {value[idx]}")
-        return value[idx]
+        logging.debug(f"plusdi: {value[candle_number]}")
+        return value[candle_number]
 
-    # Update the minusdi method
-    def minusdi(self, timeperiod=5, idx=-2):
+    def minusdi(self, timeperiod=5, candle_number=-2):
+        """
+        Calculate the Minus Directional Indicator (MINUS_DI) for a given candle.
+
+        Parameters:
+        - timeperiod (int): The time period for MINUS_DI calculation.
+        - candle_number (int): The candle number for which to calculate MINUS_DI. 
+                              A negative value indicates counting from the most recent candle.
+
+        Returns:
+        - float: The MINUS_DI value for the specified candle.
+        """
         value = talib.MINUS_DI(
             self.inputs['high'], self.inputs['low'],  self.inputs['close'], timeperiod=timeperiod)
         self.write_col_to_csv("minusdi", value)
-        logging.debug(f"minusdi: {value[idx]}")
-        return value[idx]
+        logging.debug(f"minusdi: {value[candle_number]}")
+        return value[candle_number]
 
-    # Update the bbands method for upper, middle, and lower
-    def bbands(self, timeperiod=5, nbdev=2, matype=0, idx=-2, band="lower"):
+    def bbands(self, timeperiod=5, nbdev=2, matype=0, candle_number=-2, band="lower"):
+        """
+        Calculate Bollinger Bands (BBANDS) for a given candle.
+
+        Parameters:
+        - timeperiod (int): The time period for BBANDS calculation.
+        - nbdev (float): The number of standard deviations to use.
+        - matype (int): The type of moving average to use.
+        - candle_number (int): The candle number for which to calculate BBANDS. 
+                              A negative value indicates counting from the most recent candle.
+        - band (str): The type of band to calculate ('upper', 'middle', or 'lower').
+
+        Returns:
+        - float: The specified BBANDS value for the specified candle.
+        """
         nbdev = nbdev * 1.00
         ub, mb, lb = talib.BBANDS(
             self.inputs['close'], timeperiod=timeperiod, nbdevup=nbdev, nbdevdn=nbdev, matype=matype)
 
         if band == "upper":
             self.write_col_to_csv("bbands_upper", ub)
-            logging.debug(f"bbands {band}[{idx}]: {ub[idx]}")
-            return ub[idx]
+            logging.debug(
+                f"bbands {band}[{candle_number}]: {ub[candle_number]}")
+            return ub[candle_number]
         elif band == "middle":
             self.write_col_to_csv("bbands_middle", mb)
-            logging.debug(f"bbands {band}[{idx}]: {mb[idx]}")
-            return mb[idx]
+            logging.debug(
+                f"bbands {band}[{candle_number}]: {mb[candle_number]}")
+            return mb[candle_number]
         else:
             self.write_col_to_csv("bbands_lower", lb)
-            logging.debug(f"bbands {band}[{idx}]: {lb[idx]}")
-            return lb[idx]
+            logging.debug(
+                f"bbands {band}[{candle_number}]: {lb[candle_number]}")
+            return lb[candle_number]
 
-    # Update the ema method
-    def ema(self, timeperiod, idx=-1):
+    def ema(self, timeperiod=5, candle_number=-1):
+        """
+        Calculate the Exponential Moving Average (EMA) for a given candle.
+
+        Parameters:
+        - timeperiod (int): The time period for EMA calculation.
+        - candle_number (int): The candle number for which to calculate EMA. 
+                              A negative value indicates counting from the most recent candle.
+
+        Returns:
+        - float: The EMA value for the specified candle.
+        """
         try:
             result = talib.EMA(
                 self.inputs,
                 timeperiod=timeperiod)
             self.write_col_to_csv("ema", result)
-            logging.debug(f"ema[{idx}]: {result[idx]}")
-            return result[idx]
+            logging.debug(f"ema[{candle_number}]: {result[candle_number]}")
+            return result[candle_number]
         except Exception as e:
             logging.error(e)
 
-    # Update the macd method for line, signal, and hist
-    def macd(self, fastperiod, slowperiod, signalperiod, idx=-2, which="hist"):
+    def macd(self, fastperiod=5, slowperiod=5, signalperiod=5, candle_number=-2, which="hist"):
+        """
+        Calculate Moving Average Convergence Divergence (MACD) values for a given candle.
+
+        Parameters:
+        - fastperiod (int): The time period for fast EMA calculation.
+        - slowperiod (int): The time period for slow EMA calculation.
+        - signalperiod (int): The time period for the signal line calculation.
+        - candle_number (int): The candle number for which to calculate MACD values.
+                              A negative value indicates counting from the most recent candle.
+        - which (str): The component of MACD to retrieve ('line', 'signal', or 'hist').
+
+        Returns:
+        - float: The specified MACD component value for the specified candle.
+        """
         try:
             line, signal, hist = talib.MACD(self.inputs['close'],
                                             fastperiod=fastperiod,
@@ -133,28 +204,52 @@ class Candle:
             self.write_col_to_csv("macd_signal", signal)
             self.write_col_to_csv("macd_hist", hist)
             logging.debug(
-                f"macd: line[{idx}]: {line[idx]} "
-                f"signal[{idx}]: {signal[idx]} "
-                f"hist[{idx}]: {hist[idx]}"
+                f"macd: line[{candle_number}]: {line[candle_number]} "
+                f"signal[{candle_number}]: {signal[candle_number]} "
+                f"hist[{candle_number}]: {hist[candle_number]}"
             )
             if which == "line":
-                return line[idx]
+                return line[candle_number]
             elif which == "signal":
-                return signal[idx]
+                return signal[candle_number]
             else:
-                return hist[idx]
+                return hist[candle_number]
         except Exception as e:
             logging.error(f"error {e} in macd")
 
-    # Update the rsi method
-    def rsi(self, timeperiod, idx=-1):
+    def rsi(self, timeperiod, candle_number=-1):
+        """
+         Calculate the Relative Strength Index (RSI) for a given candle.
+
+         Parameters:
+         - timeperiod (int): The time period for RSI calculation.
+         - candle_number (int): The candle number for which to calculate RSI. 
+                               A negative value indicates counting from the most recent candle.
+
+         Returns:
+         - float: The RSI value for the specified candle.
+        """
         value = talib.RSI(self.inputs['close'], timeperiod=timeperiod)
         self.write_col_to_csv("rsi", value)
-        logging.debug(f"rsi[{idx}]: {value[idx]}")
-        return value[idx]
+        logging.debug(f"rsi[{candle_number}]: {value[candle_number]}")
+        return value[candle_number]
 
-    # Update the stoch method
-    def stoch(self, fastk_period=5, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0, idx=-2):
+    def stoch(self, fastk_period=5, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0, candle_number=-2):
+        """
+        Calculate the Stochastic Oscillator (STOCH) values for a given candle.
+
+        Parameters:
+        - fastk_period (int): The time period for fast %K calculation.
+        - slowk_period (int): The time period for slow %K calculation.
+        - slowk_matype (int): The type of moving average to use for slow %K.
+        - slowd_period (int): The time period for %D calculation.
+        - slowd_matype (int): The type of moving average to use for %D.
+        - candle_number (int): The candle number for which to calculate STOCH values.
+                              A negative value indicates counting from the most recent candle.
+
+        Returns:
+        - float: The specified STOCH value for the specified candle.
+        """
         slowk, slowd = talib.STOCH(self.inputs['high'],
                                    self.inputs['low'],
                                    self.inputs['close'],
@@ -166,10 +261,24 @@ class Candle:
                                    )
         self.write_col_to_csv("stoch_slowk", slowk)
         self.write_col_to_csv("stoch_slowd", slowd)
-        return slowk[idx], slowd[idx]
+        return slowk[candle_number], slowd[candle_number]
 
-    # Update the stochsrsi method
-    def stochsrsi(self, timeperiod=14, fastk_period=5, fastd_period=3, fastd_matype=0):
+    def stochsrsi(self, timeperiod=14, fastk_period=5, fastd_period=3, fastd_matype=0, candle_number=-2, which="fastk"):
+        """
+        Calculate Stochastic RSI (STOCHRSI) values for a given candle.
+
+        Parameters:
+        - timeperiod (int): The time period for RSI calculation.
+        - fastk_period (int): The time period for fast %K calculation.
+        - fastd_period (int): The time period for fast %D calculation.
+        - fastd_matype (int): The type of moving average to use for fast %D.
+        - candle_number (int): The candle number for which to calculate STOCHRSI values.
+          A negative value indicates counting from the most recent candle.
+        - which (str): The component of STOCHRSI to retrieve ('fastk' or 'fastd').
+
+        Returns:
+        - float: The specified STOCHRSI component value for the specified candle.
+        """
         fastk, fastd = talib.STOCHRSI(
             self.inputs,
             timeperiod=timeperiod,
@@ -178,8 +287,11 @@ class Candle:
             fastd_matype=fastd_matype)
         self.write_col_to_csv("stochrsi_fastk", fastk)
         self.write_col_to_csv("stochrsi_fastd", fastd)
-        print(f" stockrsi: {fastk=} {fastd=}")
-        return fastk, fastd
+        logging.debug(f" stockrsi: {fastk=} {fastd=}")
+        if which == "fastk":
+            return fastk[candle_number]
+        else:
+            return fastd[candle_number]
 
 
 def resample(symbol, str_time):
@@ -324,37 +436,6 @@ month_ha = Candle("1M")
 
 api = login_and_get_token()
 
-
-"""
-if (
-month_ca.close(-2) < month_ca.close(-3)
-and month_ca.adx(3) > 5
-and month_ca.rsi(3) > 30
-and month_ca.bbands(5, 2, 0, -1, "upper") > month_ca.bbands(5, 2, 0, -2, "upper")
-and month_ca.macd(5,8, 3, -1, "line") > month_ca.macd(5, 8, 3, -2, "line")
-and month_ca.plusdi(5) > month_ca.minusdi(5)
-):
-
-    • [0] Monthly RSI(14) Greater than Number 30.
-    • [0] Monthly Upper Bollinger band(20, 2) greater than 1 month ago Upper Bollinger band(20, 2)
-    • [0] Monthly ADX(14) greater than Number 5
-    • [0] Monthly ADX DI Positive(14) greater than[0] Monthly ADX DI Negative(14)
-    • [0] Monthly MACD line(26, 12, 9) Greater than[0] Monthly signal(26, 12, 9)
-    • [0] Monthly MACD line(26, 12, 9) greater than 1 month ago MACD line(26, 12, 9)
-    • [0] Weekly RSI(14) Greater than Number 30
-    • [0] Weekly HA close is greater than Weekly HA Open.
-    • [0] Weekly ADX(14) greater than Number 5
-    • [0] Weekly Close greater than Weekly EMA 200 (Weekly Close, 200)
-    • [0] Weekly MACD line(26, 12, 9) greater than Number 0.
-    • [0] Weekly MACD line(26, 12, 9) greater than 1 week ago MACD line(26, 12, 9)
-    • 1 week ago MACD line(26, 12, 9) greater than 2 week ago MACD line(26, 12, 9)
-    • [0] Daily RSI(14) less than Number 70
-    • [0] Daily RSI(14) greater than number 30
-    • [0] Daily StochRSI(14) less than number 20
-    • [0] Daily EMA 200 greater than 1 Day ago EMA 200.
-    • 1 Day ago EMA 200 greater than 2 Day ago EMA 200.
-    • 2 Day ago EMA 200 greater than 3 Day ago EMA 200.
-"""
 
 buy_conditions = "buy_conditions.txt"
 with open(buy_conditions, 'r') as file:
