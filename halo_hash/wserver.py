@@ -124,12 +124,13 @@ def execute_strategy(config, broker):
     pass
 
 if __name__ == "__main__":
+    """
     dir_path = "../../"
     configuration_details = load_config_to_list_of_dicts(csv_file_path=dir_path+'buy_sell_config.csv')
     print(configuration_details)
     instrument_names = get_all_instrument_names(configuration_details)
     print(instrument_names)
-
+    """
 
     from omspy_brokers.finvasia import Finvasia
     import yaml
@@ -142,15 +143,16 @@ if __name__ == "__main__":
         broker = BROKER(**config)
         if broker.authenticate():
             print("success")
-
+    """
     for config in configuration_details:
         execute_strategy(config, broker)
-    # ws = Wserver(broker)
-    # while not ws.feed_opened:
-    #     print("waiting for feed to open")
-    #     time.sleep(0.2)
-
-    # resp = ws.ltp(instrument_names)
+    """
+    ### init only once
+    ws = Wserver(broker)
+    
+    instrument_names = ["NSE:INFY", "NSE:TRIDENT"]
+    resp = ws.ltp(instrument_names)
+    print(resp)
     # print(resp)
     # ws.close()
     # Add a delay or perform other operations here
