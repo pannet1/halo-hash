@@ -1,6 +1,7 @@
 import time 
 from wserver import Wserver
-
+from datetime import datetime, timedelta
+import pandas as pd
 
 def load_config_to_list_of_dicts(csv_file_path):
     """
@@ -68,6 +69,25 @@ def execute_strategy(config, broker):
         execute_sell_strategy(config, broker)
     pass
 
+def initialise_strategy(configuration_details, broker, ws):
+    instrument_names = get_all_instrument_names(configuration_details)
+    print(instrument_names)
+    
+    yesterday = datetime.now() - timedelta(days=1)
+    yesterday_time_string = yesterday.strftime('%d-%m-%Y') + ' 00:00:00'
+    time_obj = time.strptime(yesterday_time_string, '%d-%m-%Y %H:%M:%S')
+    start_time = time.mktime(time_obj)
+
+    ltp_dict = ws.ltp(instrument_names)
+    for sym_config in configuration_details:
+        token = broker.instrument_symbol(sym_config["exchange"],sym_config["Instrument_name"])
+        historical_data: list[dict] | None = broker.historical(sym_config["exchange"], token, start_time, None)
+        if historical_data is not None:
+            df = pd.DataFrame(historical_data[1:11])
+
+
+    # get_ltp()
+
 
 if __name__ == "__main__":
 
@@ -94,12 +114,9 @@ if __name__ == "__main__":
     ### init only once
     ws = Wserver(broker)
     
-    initialise_strategy(configuration_details, broker) # do the initial buy or sell and store the value in config by mutation
+    initialise_strategy(configuration_details, broker, ws) # do the initial buy or sell and store the value in config by mutation
 
     while True:
-        # instrument_names = ["NSE:INFY", "NSE:TRIDENT"]
-        resp = ws.ltp(instrument_names)
-        print(resp)
         for config in configuration_details:
             execute_strategy(config, broker) # check for the ltp value and re-enter or buy/sell as per req
     # print(resp)
