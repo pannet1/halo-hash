@@ -7,12 +7,6 @@ import pendulum
 import pandas as pd
 import traceback
 
-
-"""
-for examples of ta lib search for programcreek
-"""
-
-
 def login_and_get_token():
     try:
         api = Finvasia(**CRED)
@@ -24,7 +18,9 @@ def login_and_get_token():
 
 
 class Candle:
-
+    """
+    for examples of ta lib search for programcreek
+    """
     def __init__(self, period: str):
         self.period = period
         self.inputs = []  # Use the shared data
@@ -327,40 +323,7 @@ def ha(symbol, str_time):
     pass
 
 
-def validate_expression(expression):
-    try:
-        # Parse the expression to an talib Syntax Tree (AST)
-        parsed_expression = ast.parse(expression)
 
-        # Extract names (identifiers) from the expression
-        names = [node.id for node in ast.walk(
-            parsed_expression) if isinstance(node, ast.Name)]
-
-        # Check if the names correspond to valid classes or functions
-        valid_names = all(name in globals() for name in names)
-
-        if valid_names:
-            return True
-        else:
-            logging.error(f"Invalid names in expression: {expression.strip()}")
-            return False
-    except SyntaxError as e:
-        logging.error(
-            f"Syntax error in expression: {expression.strip()} - {str(e)}")
-        return False
-
-
-def is_valid_file(expression, filepath):
-    try:
-        # Validate each expression before evaluating:
-        if not validate_expression(expression):
-            logging.error(f" error in {expression} ")
-            valid = False
-        valid = True
-        logging.debug(f"Is {filepath} {valid =}?")
-        return valid
-    except Exception as e:
-        logging.error(f"{e} while checking validity of file {filepath}")
 
 
 def download_data(symbol):
@@ -423,7 +386,7 @@ def is_buy_signal(expressions):
         logging.info(f"{buy_signal=}")
         return buy_signal
     except Exception as e:
-        traceback.format_exc
+        print(traceback.format_exc)
         logging.error(f"error {str(e)} while generating buy signal")
 
 
@@ -436,16 +399,54 @@ month_ha = Candle("1M")
 
 api = login_and_get_token()
 
+class Strategy:
 
-buy_conditions = "buy_conditions.txt"
-with open(buy_conditions, 'r') as file:
-    expressions = file.read().replace("\n", " ")
+    def __init__(self, 
+                 strategy_name
+                 ):
+        self.__name__ = strategy_name
 
-if is_valid_file(expressions, buy_conditions):
-    symbol_list = ["PFC"]  # Add your symbols here
+    def validate_expression(self, expression):
+        try:
+            # Parse the expression to an talib Syntax Tree (AST)
+            parsed_expression = ast.parse(expression)
 
-    for symbol in symbol_list:
-        if api:
-            download_data(symbol)
-        update_inputs(symbol)
-        is_buy_signal(expressions)
+            # Extract names (identifiers) from the expression
+            names = [node.id for node in ast.walk(
+                parsed_expression) if isinstance(node, ast.Name)]
+
+            # Check if the names correspond to valid classes or functions
+            valid_names = all(name in globals() for name in names)
+
+            if valid_names:
+                return True
+            else:
+                logging.error(f"Invalid names in expression: {expression.strip()}")
+                return False
+        except SyntaxError as e:
+            logging.error(
+                f"Syntax error in expression: {expression.strip()} - {str(e)}")
+            return False
+
+    def is_valid_file(self,filepath):
+        try:
+            with open(filepath) as file:
+                expression = file.read().replace("\n", " ")
+                # Validate each expression before evaluating:
+                if self.validate_expression(expression):
+                    return expression
+        except Exception as e:
+            logging.error(f"{e} while checking validity of file {filepath}")
+
+
+folder_path = "strategies/"
+lst_strategies = futils.on_subfolders(folder_path)
+for strategy in lst_strategies:
+    obj_strgy = Strategy(strategy)
+    signal = "buy"
+    filepath = f"{folder_path}{strategy}/{signal}_conditions.txt"
+    expression =  obj_strgy.is_valid_file(filepath)
+    symbol = "PFC"  # Add your symbols here
+    download_data(symbol)
+    update_inputs(symbol)
+    is_buy_signal(expression)

@@ -150,9 +150,10 @@ if __name__ == "__main__":
     ### init only once
     ws = Wserver(broker)
     
-    instrument_names = ["NSE:INFY", "NSE:TRIDENT"]
-    resp = ws.ltp(instrument_names)
-    print(resp)
+    while True:
+        instrument_names = ["NSE:INFY", "NSE:TRIDENT"]
+        resp = ws.ltp(instrument_names)
+        print(resp)
     # print(resp)
     # ws.close()
     # Add a delay or perform other operations here
