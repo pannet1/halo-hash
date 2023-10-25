@@ -7,6 +7,7 @@ import pendulum
 import pandas as pd
 import traceback
 
+
 def login_and_get_token():
     try:
         api = Finvasia(**CRED)
@@ -17,10 +18,90 @@ def login_and_get_token():
         print(e)
 
 
+def update_inputs(symbol):
+    month_ca.inputs = resample(symbol, "1M")
+    month_ca.symbol = symbol
+    week_ca.inputs = resample(symbol, "1W")
+    week_ca.symbol = symbol
+    day_ca.inputs = resample(symbol, "1D")
+    day_ca.symbol = symbol
+    hour_ca.inputs = resample(symbol, "1H")
+    hour_ca.symbol = symbol
+    minute_ca.inputs = resample(symbol, "1Min")
+    minute_ca.symbol = symbol
+
+    month_ha.inputs = ha(symbol, "1M")
+
+
+def resample(symbol, str_time):
+    filepath = f"data/{symbol}.csv"
+    df = pd.read_csv(filepath, index_col="time", parse_dates=True, dayfirst=True)
+    ohlc = {
+        "open": "first",
+        "high": "max",
+        "low": "min",
+        "close": "last",
+        "volume": "sum",
+    }
+    df = df.resample(str_time, origin="start").apply(ohlc)
+    # df = df.drop(df[df.open.isnull()].index)
+    df.to_csv(f"data/{symbol}_{str_time}.csv")
+    inputs = {
+        "time": df.index.tolist(),
+        "open": np.array(df["open"].tolist()),
+        "high": np.array(df["high"].tolist()),
+        "low": np.array(df["low"].tolist()),
+        "close": np.array(df["close"].tolist()),
+    }
+    return inputs
+
+
+def download_data(symbol):
+    filepath = f"data/{symbol}.csv"
+    if not futils.is_file_not_2day(filepath):
+        logging.debug(f"{filepath} modified today")
+        df_price = pd.DataFrame()
+        tkn = api.instrument_symbol("NSE", symbol)
+        lastBusDay = pendulum.now()
+        fromBusDay = lastBusDay.subtract(months=24)
+        lastBusDay = lastBusDay.replace(hour=0, minute=0, second=0, microsecond=0)
+        fromBusDay = fromBusDay.replace(hour=0, minute=0, second=0, microsecond=0)
+        resp = api.finvasia.get_time_price_series(
+            exchange="NSE",
+            token=tkn,
+            starttime=fromBusDay.timestamp(),
+            endtime=lastBusDay.timestamp(),
+            interval=1,
+        )
+        if resp is not None:
+            lst_price = []
+            for ret in resp:
+                dct = {
+                    "time": ret["time"],
+                    "open": ret["into"],
+                    "high": ret["inth"],
+                    "low": ret["intl"],
+                    "close": ret["intc"],
+                    "volume": ret["v"],
+                }
+                lst_price.append(dct)
+            # sort DataFrame in descending order
+            df_price = pd.DataFrame(lst_price).sort_index(ascending=False)
+            df_price.to_csv(filepath, index=False)
+            return True
+        else:
+            logging.warning(f"no data for {symbol}")
+            return False
+    else:
+        logging.debug(f"using {filepath} already modfied today")
+        return True
+
+
 class Candle:
     """
     for examples of ta lib search for programcreek
     """
+
     def __init__(self, period: str):
         self.period = period
         self.inputs = []  # Use the shared data
@@ -40,28 +121,28 @@ class Candle:
             print(f"while writing indicator to csv {e}")
 
     def open(self, candle_number=-2):
-        value = self.inputs['open'][candle_number]
+        value = self.inputs["open"][candle_number]
         logging.debug(f"open[{candle_number}]: {value}")
         return value
 
     def high(self, candle_number=-2):
-        value = self.inputs['high'][candle_number]
+        value = self.inputs["high"][candle_number]
         logging.debug(f"high[{candle_number}]: {value}")
         return value
 
     def low(self, candle_number=-2):
-        value = self.inputs['low'][candle_number]
+        value = self.inputs["low"][candle_number]
         logging.debug(f"close[{candle_number}]: {value}")
         return value
 
     def close(self, candle_number=-2):
         if len(self.inputs) >= candle_number:
-            value = self.inputs['close'][candle_number]
+            value = self.inputs["close"][candle_number]
             logging.debug(f"close[{candle_number}]: {value}")
             return value
 
     def volume(self, candle_number=-2):
-        value = self.inputs['volume'][candle_number]
+        value = self.inputs["volume"][candle_number]
         logging.debug(f"volume{candle_number}: {value}")
         return value
 
@@ -78,7 +159,11 @@ class Candle:
         - float: The ADX value for the specified candle.
         """
         value = talib.ADX(
-            self.inputs['high'], self.inputs['low'], self.inputs['close'], timeperiod=timeperiod)
+            self.inputs["high"],
+            self.inputs["low"],
+            self.inputs["close"],
+            timeperiod=timeperiod,
+        )
         self.write_col_to_csv("adx", value)
         logging.debug(f"adx[{candle_number}]: {value[candle_number]}")
         return value[candle_number]
@@ -96,7 +181,11 @@ class Candle:
         - float: The PLUS_DI value for the specified candle.
         """
         value = talib.PLUS_DI(
-            self.inputs['high'], self.inputs['low'],  self.inputs['close'], timeperiod=timeperiod)
+            self.inputs["high"],
+            self.inputs["low"],
+            self.inputs["close"],
+            timeperiod=timeperiod,
+        )
         self.write_col_to_csv("plusdi", value)
         logging.debug(f"plusdi: {value[candle_number]}")
         return value[candle_number]
@@ -107,14 +196,18 @@ class Candle:
 
         Parameters:
         - timeperiod (int): The time period for MINUS_DI calculation.
-        - candle_number (int): The candle number for which to calculate MINUS_DI. 
+        - candle_number (int): The candle number for which to calculate MINUS_DI.
                               A negative value indicates counting from the most recent candle.
 
         Returns:
         - float: The MINUS_DI value for the specified candle.
         """
         value = talib.MINUS_DI(
-            self.inputs['high'], self.inputs['low'],  self.inputs['close'], timeperiod=timeperiod)
+            self.inputs["high"],
+            self.inputs["low"],
+            self.inputs["close"],
+            timeperiod=timeperiod,
+        )
         self.write_col_to_csv("minusdi", value)
         logging.debug(f"minusdi: {value[candle_number]}")
         return value[candle_number]
@@ -127,7 +220,7 @@ class Candle:
         - timeperiod (int): The time period for BBANDS calculation.
         - nbdev (float): The number of standard deviations to use.
         - matype (int): The type of moving average to use.
-        - candle_number (int): The candle number for which to calculate BBANDS. 
+        - candle_number (int): The candle number for which to calculate BBANDS.
                               A negative value indicates counting from the most recent candle.
         - band (str): The type of band to calculate ('upper', 'middle', or 'lower').
 
@@ -136,22 +229,24 @@ class Candle:
         """
         nbdev = nbdev * 1.00
         ub, mb, lb = talib.BBANDS(
-            self.inputs['close'], timeperiod=timeperiod, nbdevup=nbdev, nbdevdn=nbdev, matype=matype)
+            self.inputs["close"],
+            timeperiod=timeperiod,
+            nbdevup=nbdev,
+            nbdevdn=nbdev,
+            matype=matype,
+        )
 
         if band == "upper":
             self.write_col_to_csv("bbands_upper", ub)
-            logging.debug(
-                f"bbands {band}[{candle_number}]: {ub[candle_number]}")
+            logging.debug(f"bbands {band}[{candle_number}]: {ub[candle_number]}")
             return ub[candle_number]
         elif band == "middle":
             self.write_col_to_csv("bbands_middle", mb)
-            logging.debug(
-                f"bbands {band}[{candle_number}]: {mb[candle_number]}")
+            logging.debug(f"bbands {band}[{candle_number}]: {mb[candle_number]}")
             return mb[candle_number]
         else:
             self.write_col_to_csv("bbands_lower", lb)
-            logging.debug(
-                f"bbands {band}[{candle_number}]: {lb[candle_number]}")
+            logging.debug(f"bbands {band}[{candle_number}]: {lb[candle_number]}")
             return lb[candle_number]
 
     def ema(self, timeperiod=5, candle_number=-1):
@@ -160,23 +255,23 @@ class Candle:
 
         Parameters:
         - timeperiod (int): The time period for EMA calculation.
-        - candle_number (int): The candle number for which to calculate EMA. 
+        - candle_number (int): The candle number for which to calculate EMA.
                               A negative value indicates counting from the most recent candle.
 
         Returns:
         - float: The EMA value for the specified candle.
         """
         try:
-            result = talib.EMA(
-                self.inputs,
-                timeperiod=timeperiod)
+            result = talib.EMA(self.inputs, timeperiod=timeperiod)
             self.write_col_to_csv("ema", result)
             logging.debug(f"ema[{candle_number}]: {result[candle_number]}")
             return result[candle_number]
         except Exception as e:
             logging.error(e)
 
-    def macd(self, fastperiod=5, slowperiod=5, signalperiod=5, candle_number=-2, which="hist"):
+    def macd(
+        self, fastperiod=5, slowperiod=5, signalperiod=5, candle_number=-2, which="hist"
+    ):
         """
         Calculate Moving Average Convergence Divergence (MACD) values for a given candle.
 
@@ -192,10 +287,12 @@ class Candle:
         - float: The specified MACD component value for the specified candle.
         """
         try:
-            line, signal, hist = talib.MACD(self.inputs['close'],
-                                            fastperiod=fastperiod,
-                                            slowperiod=slowperiod,
-                                            signalperiod=signalperiod)
+            line, signal, hist = talib.MACD(
+                self.inputs["close"],
+                fastperiod=fastperiod,
+                slowperiod=slowperiod,
+                signalperiod=signalperiod,
+            )
             self.write_col_to_csv("macd_line", line)
             self.write_col_to_csv("macd_signal", signal)
             self.write_col_to_csv("macd_hist", hist)
@@ -215,22 +312,30 @@ class Candle:
 
     def rsi(self, timeperiod, candle_number=-1):
         """
-         Calculate the Relative Strength Index (RSI) for a given candle.
+        Calculate the Relative Strength Index (RSI) for a given candle.
 
-         Parameters:
-         - timeperiod (int): The time period for RSI calculation.
-         - candle_number (int): The candle number for which to calculate RSI. 
-                               A negative value indicates counting from the most recent candle.
+        Parameters:
+        - timeperiod (int): The time period for RSI calculation.
+        - candle_number (int): The candle number for which to calculate RSI.
+                              A negative value indicates counting from the most recent candle.
 
-         Returns:
-         - float: The RSI value for the specified candle.
+        Returns:
+        - float: The RSI value for the specified candle.
         """
-        value = talib.RSI(self.inputs['close'], timeperiod=timeperiod)
+        value = talib.RSI(self.inputs["close"], timeperiod=timeperiod)
         self.write_col_to_csv("rsi", value)
         logging.debug(f"rsi[{candle_number}]: {value[candle_number]}")
         return value[candle_number]
 
-    def stoch(self, fastk_period=5, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0, candle_number=-2):
+    def stoch(
+        self,
+        fastk_period=5,
+        slowk_period=3,
+        slowk_matype=0,
+        slowd_period=3,
+        slowd_matype=0,
+        candle_number=-2,
+    ):
         """
         Calculate the Stochastic Oscillator (STOCH) values for a given candle.
 
@@ -246,20 +351,29 @@ class Candle:
         Returns:
         - float: The specified STOCH value for the specified candle.
         """
-        slowk, slowd = talib.STOCH(self.inputs['high'],
-                                   self.inputs['low'],
-                                   self.inputs['close'],
-                                   fastk_period=fastk_period,
-                                   slowk_period=slowk_period,
-                                   slowk_matype=slowk_matype,
-                                   slowd_period=slowd_period,
-                                   slowd_matype=slowd_matype
-                                   )
+        slowk, slowd = talib.STOCH(
+            self.inputs["high"],
+            self.inputs["low"],
+            self.inputs["close"],
+            fastk_period=fastk_period,
+            slowk_period=slowk_period,
+            slowk_matype=slowk_matype,
+            slowd_period=slowd_period,
+            slowd_matype=slowd_matype,
+        )
         self.write_col_to_csv("stoch_slowk", slowk)
         self.write_col_to_csv("stoch_slowd", slowd)
         return slowk[candle_number], slowd[candle_number]
 
-    def stochsrsi(self, timeperiod=14, fastk_period=5, fastd_period=3, fastd_matype=0, candle_number=-2, which="fastk"):
+    def stochsrsi(
+        self,
+        timeperiod=14,
+        fastk_period=5,
+        fastd_period=3,
+        fastd_matype=0,
+        candle_number=-2,
+        which="fastk",
+    ):
         """
         Calculate Stochastic RSI (STOCHRSI) values for a given candle.
 
@@ -280,7 +394,8 @@ class Candle:
             timeperiod=timeperiod,
             fastk_period=fastk_period,
             fastd_period=fastd_period,
-            fastd_matype=fastd_matype)
+            fastd_matype=fastd_matype,
+        )
         self.write_col_to_csv("stochrsi_fastk", fastk)
         self.write_col_to_csv("stochrsi_fastd", fastd)
         logging.debug(f" stockrsi: {fastk=} {fastd=}")
@@ -290,121 +405,19 @@ class Candle:
             return fastd[candle_number]
 
 
-def resample(symbol, str_time):
-    filepath = f"data/{symbol}.csv"
-    df = pd.read_csv(filepath,
-                     index_col='time',
-                     parse_dates=True,
-                     dayfirst=True
-                     )
-    ohlc = {
-        'open': 'first',
-        'high': 'max',
-        'low': 'min',
-        'close': 'last',
-        'volume': 'sum'
-    }
-    df = df.resample(str_time, origin='start').apply(ohlc)
-    # df = df.drop(df[df.open.isnull()].index)
-    df.to_csv(f"data/{symbol}_{str_time}.csv")
-    inputs = {
-        'time': df.index.tolist(),
-        'open': np.array(df['open'].tolist()),
-        'high': np.array(df['high'].tolist()),
-        'low': np.array(df['low'].tolist()),
-        'close': np.array(df['close'].tolist()),
-    }
-    return inputs
-
-
 def ha(symbol, str_time):
     df = pd.read_csv(f"data/{symbol}_{str_time}.csv")
     print(df)
     pass
 
 
-
-
-
-def download_data(symbol):
-    filepath = f"data/{symbol}.csv"
-    if not futils.is_file_not_2day(filepath):
-        logging.debug(f"{filepath} modified today")
-        df_price = pd.DataFrame()
-        tkn = api.instrument_symbol("NSE", symbol)
-        lastBusDay = pendulum.now()
-        fromBusDay = lastBusDay.subtract(months=24)
-        lastBusDay = lastBusDay.replace(
-            hour=0, minute=0, second=0, microsecond=0)
-        fromBusDay = fromBusDay.replace(
-            hour=0, minute=0, second=0, microsecond=0)
-        resp = api.finvasia.get_time_price_series(
-            exchange='NSE', token=tkn, starttime=fromBusDay.timestamp(),
-            endtime=lastBusDay.timestamp(), interval=1
-        )
-        if resp is not None:
-            lst_price = []
-            for ret in resp:
-                dct = {
-                    'time': ret['time'],
-                    'open': ret['into'],
-                    'high': ret['inth'],
-                    'low': ret['intl'],
-                    'close': ret['intc'],
-                    'volume': ret['v'],
-                }
-                lst_price.append(dct)
-            # sort DataFrame in descending order
-            df_price = pd.DataFrame(lst_price).sort_index(ascending=False)
-            df_price.to_csv(filepath, index=False)
-            return True
-        else:
-            logging.warning(f"no data for {symbol}")
-            return False
-    else:
-        logging.debug(f"using {filepath} already modfied today")
-        return True
-
-
-def update_inputs(symbol):
-    month_ca.inputs = resample(symbol, '1M')
-    month_ca.symbol = symbol
-    week_ca.inputs = resample(symbol, '1W')
-    week_ca.symbol = symbol
-    day_ca.inputs = resample(symbol, '1D')
-    day_ca.symbol = symbol
-    hour_ca.inputs = resample(symbol, '1H')
-    hour_ca.symbol = symbol
-    minute_ca.inputs = resample(symbol, '1Min')
-    minute_ca.symbol = symbol
-    month_ha.inputs = ha(symbol, '1M')
-
-
-def is_buy_signal(expressions):
-    try:
-        buy_signal = eval(expressions)
-        logging.info(f"{buy_signal=}")
-        return buy_signal
-    except Exception as e:
-        print(traceback.format_exc)
-        logging.error(f"error {str(e)} while generating buy signal")
-
-
-month_ca = Candle("1M")
-week_ca = Candle("1W")
-day_ca = Candle("1D")
-hour_ca = Candle("1H")
-minute_ca = Candle("1Min")
-month_ha = Candle("1M")
-
-api = login_and_get_token()
-
 class Strategy:
-
-    def __init__(self, 
-                 strategy_name
-                 ):
-        self.__name__ = strategy_name
+    def __init__(self, folder_path, strategy_name):
+        self.folder_path = folder_path
+        self.strategy_name = strategy_name
+        self.short_listed_file = (
+            f"{self.folder_path}{self.strategy_name}/short_listed.csv"
+        )
 
     def validate_expression(self, expression):
         try:
@@ -412,8 +425,11 @@ class Strategy:
             parsed_expression = ast.parse(expression)
 
             # Extract names (identifiers) from the expression
-            names = [node.id for node in ast.walk(
-                parsed_expression) if isinstance(node, ast.Name)]
+            names = [
+                node.id
+                for node in ast.walk(parsed_expression)
+                if isinstance(node, ast.Name)
+            ]
 
             # Check if the names correspond to valid classes or functions
             valid_names = all(name in globals() for name in names)
@@ -425,28 +441,91 @@ class Strategy:
                 return False
         except SyntaxError as e:
             logging.error(
-                f"Syntax error in expression: {expression.strip()} - {str(e)}")
+                f"Syntax error in expression: {expression.strip()} - {str(e)}"
+            )
             return False
 
-    def is_valid_file(self,filepath):
+    def is_valid_file(self, filepath):
         try:
-            with open(filepath) as file:
-                expression = file.read().replace("\n", " ")
-                # Validate each expression before evaluating:
-                if self.validate_expression(expression):
-                    return expression
+            if futils.is_valid_file(filepath):
+                with open(filepath) as file:
+                    expression = file.read().replace("\n", " ")
+                    # Validate each expression before evaluating:
+                    if self.validate_expression(expression):
+                        return expression
         except Exception as e:
             logging.error(f"{e} while checking validity of file {filepath}")
 
+    def is_signal(self, expressions):
+        try:
+            signal = eval(expressions)
+            logging.info(f"{signal=}")
+            return signal
+        except Exception as e:
+            print(traceback.format_exc)
+            logging.error(f"error {str(e)} while generating buy signal")
 
+    def get_symbols(self):
+        self.symbols = []
+        symbol_file = f"{self.folder_path}{self.strategy_name}/symbols.csv"
+        if not futils.is_valid_file(symbol_file):
+            logging.debug("{symbol_file} does not exist")
+        else:
+            df = pd.read_csv(symbol_file)
+            if df is not None and df.shape[0] > 0:
+                self.symbols = df["symbol"].tolist()
+            else:
+                logging.debug("{symbol_file} is empty")
+
+    def set_expressions(self):
+        self.get_symbols()
+        if any(self.symbols):
+            # dummy test symbol
+            self.buy_sell = {}
+            symbol = "ADANI"
+            download_data(symbol)
+            update_inputs(symbol)
+            # buy
+            self.buy_sell[
+                "buy_path"
+            ] = f"{self.folder_path}{self.strategy}/buy_conditions.txt"
+            xpres = obj_strgy.is_valid_file(self.buy_sell["buy_path"])
+            if xpres:
+                self.buy_sell["buy_xpres"] = xpres
+
+            # sell
+            self.buy_sell[
+                "sell_path"
+            ] = f"{self.folder_path}{self.strategy}/sell_conditions.txt"
+            xpres = obj_strgy.is_valid_file(self.buy_sell["sell_path"])
+            if xpres:
+                self.buy_sell["sell_xpress"] = xpres
+
+
+month_ca = Candle("1M")
+week_ca = (Candle("1W"),)
+day_ca = Candle("1D")
+hour_ca = Candle("1H")
+minute_ca = Candle("1Min")
+month_ha = Candle("1M")
+
+api = login_and_get_token()
 folder_path = "strategies/"
 lst_strategies = futils.on_subfolders(folder_path)
 for strategy in lst_strategies:
-    obj_strgy = Strategy(strategy)
-    signal = "buy"
-    filepath = f"{folder_path}{strategy}/{signal}_conditions.txt"
-    expression =  obj_strgy.is_valid_file(filepath)
-    symbol = "PFC"  # Add your symbols here
+    obj_strgy = Strategy(folder_path, strategy)
+    obj_strgy.set_expressions()
+
+for symbol in obj_strgy.symbol:
     download_data(symbol)
     update_inputs(symbol)
-    is_buy_signal(expression)
+    is_buy = obj_strgy.is_signal(obj_strgy.buy_sell["buy_path"])
+    if is_buy:
+        # append buy signal, symbol to csv
+        with open(obj_strgy.short_listed_file, "a") as buy_file:
+            buy_file.write(f"{symbol}\n")
+    is_sell = obj_strgy.is_signal(obj_strgy.buy_sell["buy_path"])
+    if is_sell:
+        # append sell signal, symbol to csv
+        with open(obj_strgy.short_listed_file, "a") as sell_file:
+            sell_file.write(f"{symbol}\n")
