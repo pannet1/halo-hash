@@ -51,11 +51,12 @@ class Wserver:
         if any(tkns):
             self.api.subscribe(tkns)
             while not any(self.ticks):
-                time.sleep(0.2)
+                pass
             else:
+                self.close_socket()
                 return self.ticks
 
-    def close(self):
+    def close_socket(self):
         self.api.close_websocket()
 
 
@@ -83,23 +84,22 @@ if __name__ == "__main__":
             a = broker.instrument_symbol(e, s)
             print(a)
             yesterday = datetime.now() - timedelta(days=6)
-            yesterday_time_string = yesterday.strftime(
-                '%d-%m-%Y') + ' 00:00:00'
-            time_obj = time.strptime(
-                yesterday_time_string, '%d-%m-%Y %H:%M:%S')
+            yesterday_time_string = yesterday.strftime("%d-%m-%Y") + " 00:00:00"
+            time_obj = time.strptime(yesterday_time_string, "%d-%m-%Y %H:%M:%S")
             start_time = time.mktime(time_obj)
             today = datetime.now()
-            today_time_string = today.strftime('%d-%m-%Y %H:%M:%S')
-            time_obj = time.strptime(today_time_string, '%d-%m-%Y %H:%M:%S')
+            today_time_string = today.strftime("%d-%m-%Y %H:%M:%S")
+            time_obj = time.strptime(today_time_string, "%d-%m-%Y %H:%M:%S")
             end_time = time.mktime(time_obj)
             print(start_time, end_time)
             historical_data: list[dict] | None = broker.historical(
-                e, a, start_time, end_time)
+                e, a, start_time, end_time
+            )
             if historical_data is not None:
                 df = pd.DataFrame(historical_data[1:11])
 
                 print(df)
-        break
+        # break
     # print(resp)
     # ws.close()
     # Add a delay or perform other operations here

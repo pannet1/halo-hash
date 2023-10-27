@@ -1,4 +1,4 @@
-month_ca.close(-2) < month_ca.close(-3)
+month_ha.close(-2) < month_ha.close(-3)
 and month_ca.adx(3) > 5
 and month_ca.plusdi(5) > month_ca.minusdi(5)
 and month_ca.macd(5,8, 3, -1, "line") > month_ca.macd(5, 8, 3, -2, "line")
