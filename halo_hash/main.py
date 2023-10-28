@@ -1,10 +1,11 @@
 import time
 from wserver import Wserver
 from datetime import datetime, timedelta
-import pandas as pd # pip install pandas
-import pendulum # pip install pendulum
-import requests # pip install requests
-import yaml # pip install pyyaml
+import pandas as pd  # pip install pandas
+import pendulum  # pip install pendulum
+import requests  # pip install requests
+import yaml  # pip install pyyaml
+
 dir_path = "../../"
 roll_over_occurred_today = False
 
@@ -101,7 +102,7 @@ def execute_strategy(config, broker):
 
 
 def initialise_strategy(configuration_details, broker):
-    """perform the initial buy or sell based on the configuration details in 
+    """perform the initial buy or sell based on the configuration details in
     buy_sell_config.csv
 
     Args:
@@ -120,7 +121,9 @@ def initialise_strategy(configuration_details, broker):
     for sym_config in configuration_details:
         entry_time = sym_config["strategy_entry_time"].split(":")
         current_time = pendulum.now()
-        if current_time.hour >= int(entry_time[0]) and current_time.minute >= int(entry_time[1]):
+        if current_time.hour >= int(entry_time[0]) and current_time.minute >= int(
+            entry_time[1]
+        ):
             print(f"Time has not reached for the symbol - {sym_config}")
             continue
         token = broker.instrument_symbol(
@@ -143,39 +146,42 @@ def initialise_strategy(configuration_details, broker):
             #     7   Ok  27-10-2023 15:21:00  1698400260  1380.70  1380.95  1380.25  1380.95  1379.90  28085     0  4422481  0
             #     8   Ok  27-10-2023 15:20:00  1698400200  1381.00  1381.70  1380.25  1380.90  1381.08  72837     0  4394396  0
             #     9   Ok  27-10-2023 15:19:00  1698400140  1380.35  1381.05  1380.30  1381.05  1381.44  27441     0  4321559  0
-            
+
             risk_per_trade = int(sym_config["Risk per trade"])
             capital_allocated = int(sym_config["Capital_allocated_in_lac"]) * 1_00_000
             margin_required = int(sym_config["Margin required"])
-            
+
             allowable_quantity_as_per_capital = capital_allocated / margin_required
             if sym_config["action"] == "SELL":
-                high_of_last_10_candles = df['inth'].max()
+                high_of_last_10_candles = df["inth"].max()
                 resp = broker.scriptinfo(sym_config["exchange"], token)
                 ltp = int(resp["lp"])
                 stop_loss = high_of_last_10_candles - ltp
                 allowable_quantity_as_per_risk = risk_per_trade / stop_loss
-                traded_quantity = min(allowable_quantity_as_per_risk, allowable_quantity_as_per_capital)
+                traded_quantity = min(
+                    allowable_quantity_as_per_risk, allowable_quantity_as_per_capital
+                )
                 if traded_quantity == 1:
                     sell_quantity = 1
                 else:
-                    temp = int(int(traded_quantity/45) * 45) 
-                    sell_quantity = int(int(temp/2) *2)
+                    temp = int(int(traded_quantity / 45) * 45)
+                    sell_quantity = int(int(temp / 2) * 2)
                 # place_order("SELL")
             else:
-                lowest_of_last_10_candles = df['inth'].max()
+                lowest_of_last_10_candles = df["inth"].max()
                 resp = broker.scriptinfo(sym_config["exchange"], token)
                 ltp = int(resp["lp"])
                 stop_loss = ltp - lowest_of_last_10_candles
                 allowable_quantity_as_per_risk = risk_per_trade / stop_loss
-                traded_quantity = min(allowable_quantity_as_per_risk, allowable_quantity_as_per_capital)
+                traded_quantity = min(
+                    allowable_quantity_as_per_risk, allowable_quantity_as_per_capital
+                )
                 if traded_quantity == 1:
                     buy_quantity = 1
                 else:
-                    temp = int(int(traded_quantity/45) * 45) 
-                    buy_quantity = int(int(temp/2) *2)
+                    temp = int(int(traded_quantity / 45) * 45)
+                    buy_quantity = int(int(temp / 2) * 2)
                 # place_order("BUY")
-
 
     # get_ltp()
 
@@ -189,7 +195,6 @@ if __name__ == "__main__":
     print(instrument_names)
 
     from omspy_brokers.finvasia import Finvasia
-    
 
     BROKER = Finvasia
     dir_path = "../../"
@@ -201,19 +206,19 @@ if __name__ == "__main__":
             print("success")
 
     ### init only once
-    ws = Wserver(broker)
+    ws = Wserver(broker, ["NSE|22", "BSE|522032"])
 
     initialise_strategy(
         configuration_details, broker
     )  # do the initial buy or sell and store the value in config by mutation
 
-    # while True:
+    while True:
+        print(ws.ltp)
+        time.sleep(1)
     #     for config in configuration_details:
     #         execute_strategy(
     #             config, broker
     #         )  # check for the ltp value and re-enter or buy/sell as per req
-    # print(resp)
-    # ws.close()
     # Add a delay or perform other operations here
 
     # When done, close the WebSocket connection
