@@ -72,11 +72,17 @@ def get_historical_data(sym_config, broker):
             sym_config["exchange"], sym_config["token"], start_time, None
         )
     if historical_data is not None:
-        return pd.DataFrame(historical_data[1:11])
+        return pd.DataFrame(historical_data)
     return pd.DataFrame()
+
+def resample_df(df, interval):
+    df.set_index('time', inplace=True)
+    df = df.resample(f"{interval}T").mean()
+    return df
 
 
 def place_order_with_params(sym_config, historical_data_df):
+    historical_data_df = historical_data_df.iloc[1:11] # take only 10 rows excluding the first row
     risk_per_trade = int(sym_config["Risk per trade"])
     capital_allocated = int(sym_config["Capital_allocated_in_lac"]) * 1_00_000
     margin_required = int(sym_config["Margin required"])
@@ -98,6 +104,7 @@ def place_order_with_params(sym_config, historical_data_df):
             temp = int(int(traded_quantity / lot_size) * lot_size)
             sell_quantity = int(int(temp / 2) * 2)
         # place_order("SELL") # TODO: @pannet1
+        # add all params to sym_config, this is required to manage the placed order
     else:
         lowest_of_last_10_candles = historical_data_df["intl"].min()
         ltp = ws.ltp.get(sym_config["exchange|token"])
@@ -133,6 +140,31 @@ def is_start_time_reached(sym_config):
     return False if current_time < target_time else True 
 
 
+def check_for_condition_1(sym_config, broker):
+    historical_data_df = get_historical_data(sym_config, broker)
+    resampled_df = resample_df(historical_data_df, sym_config["Candle_timeframe_in_minutes"])
+    latest_record = resampled_df.iloc[[0]]
+    if sym_config["action"] == "BUY":
+        condition_1 = latest_record["intc"] < latest_record["into"]
+        condition_2 = latest_record["into"] == latest_record["inth"]
+        if condition_1 and condition_2:
+            pass
+            # Exit 50% quantity
+    else:
+        condition_1 = latest_record["intc"] > latest_record["into"]
+        condition_2 = latest_record["into"] == latest_record["intl"]
+        if condition_1 and condition_2:
+            pass
+            # Exit 50% quantity
+
+
+def manage_strategy(sym_config, broker, ws):
+    # check_for_condition_1() 
+    # check_for_condition_2()
+    # check_for_condition_3()
+    pass
+
+
 def execute_strategy(sym_config, broker, ws):
     if not sym_config.get("strategy_started", None):
         # strategy is not started, so start it 
@@ -145,11 +177,9 @@ def execute_strategy(sym_config, broker, ws):
         sym_config = place_first_order_for_strategy(sym_config, broker, ws)
         if not sym_config.get("strategy_started", None):
             return sym_config
+    # strategy is started, so manage it
+    manage_strategy(sym_config, broker, ws)
     
-            
-    else:
-        # strategy is started, so manage it
-        pass
 
 
 if __name__ == "__main__":
