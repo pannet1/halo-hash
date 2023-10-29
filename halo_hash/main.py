@@ -39,13 +39,6 @@ def load_config_to_list_of_dicts(csv_file_path):
     return list_of_dicts
 
 
-def get_all_instrument_names(list_of_dicts: list[dict]) -> list:
-    instrument_names = set(
-        element["exchange"] + ":" + element["Instrument_name"]
-        for element in list_of_dicts
-    )
-    return list(instrument_names)
-
 
 # def get_current_ltp(broker, instrument_name):
 #     ws = Wserver(broker)
@@ -53,37 +46,6 @@ def get_all_instrument_names(list_of_dicts: list[dict]) -> list:
 #     print(instrument_name, resp)
 #     ltp = resp.get(instrument_name.split(":")[-1], 0)
 #     return ltp
-
-
-def execute_buy_strategy(config, broker):
-    instrument_name = config["exchange"] + ":" + config["Instrument_name"]
-    current_ltp = get_current_ltp(broker, instrument_name)
-    risk_per_trade = config["Risk per trade"]
-    candle_timeframe = config["Candle_timeframe"]
-    capital_allocated = config["Capital_allocated_in_lac"]
-    margin_required = config["Margin required"]
-    strategy_start_time = config["strategy_entry_time"]
-    strategy_end_time = config["strategy_exit_time"]
-    rollover_symbol_name = config["Rollover_symbol_name"]
-    rollover_date_time = config["rollover_date_time"]
-    lot_size = config["lot_size"]
-    high_of_last_ten_candles = (
-        ""
-    )  # get this from scanner. download_data using timeframe
-
-    pass
-
-
-def execute_sell_strategy(config, broker):
-    pass
-
-
-def execute_strategy(config, broker):
-    if config["action"] == "BUY":
-        execute_buy_strategy(config, broker)
-    if config["action"] == "SELL":
-        execute_sell_strategy(config, broker)
-    pass
 
 
 # def exit_all_strategies(strategies):
@@ -101,99 +63,100 @@ def execute_strategy(config, broker):
 #     return configuration_details, strategies
 
 
-def initialise_strategy(configuration_details, broker):
-    """perform the initial buy or sell based on the configuration details in
-    buy_sell_config.csv
-
-    Args:
-        configuration_details (list[dict]): _description_
-        broker (_type_): _description_
-    """
-    instrument_names = get_all_instrument_names(configuration_details)
-    print(instrument_names)
-
+def get_historical_data(sym_config, broker):
     yesterday = datetime.now() - timedelta(days=1)
     yesterday_time_string = yesterday.strftime("%d-%m-%Y") + " 00:00:00"
     time_obj = time.strptime(yesterday_time_string, "%d-%m-%Y %H:%M:%S")
     start_time = time.mktime(time_obj)
-
-    # ltp_dict = ws.ltp(instrument_names)
-    for sym_config in configuration_details:
-        entry_time = sym_config["strategy_entry_time"].split(":")
-        current_time = pendulum.now()
-        if current_time.hour >= int(entry_time[0]) and current_time.minute >= int(
-            entry_time[1]
-        ):
-            print(f"Time has not reached for the symbol - {sym_config}")
-            continue
-        token = broker.instrument_symbol(
-            sym_config["exchange"], sym_config["Instrument_name"]
+    historical_data: list[dict] | None = broker.historical(
+            sym_config["exchange"], sym_config["token"], start_time, None
         )
-        historical_data: list[dict] | None = broker.historical(
-            sym_config["exchange"], token, start_time, None
+    if historical_data is not None:
+        return pd.DataFrame(historical_data[1:11])
+    return pd.DataFrame()
+
+
+def place_order_with_params(sym_config, historical_data_df):
+    risk_per_trade = int(sym_config["Risk per trade"])
+    capital_allocated = int(sym_config["Capital_allocated_in_lac"]) * 1_00_000
+    margin_required = int(sym_config["Margin required"])
+    lot_size = int(sym_config["lot_size"])
+    allowable_quantity_as_per_capital = capital_allocated / margin_required
+    
+    if sym_config["action"] == "SELL":
+        high_of_last_10_candles = historical_data_df["inth"].max()
+        ltp = ws.ltp.get(sym_config["exchange|token"])
+        stop_loss = high_of_last_10_candles - ltp
+        sym_config["stop_loss"] = stop_loss
+        allowable_quantity_as_per_risk = risk_per_trade / stop_loss
+        traded_quantity = min(
+            allowable_quantity_as_per_risk, allowable_quantity_as_per_capital
         )
-        if historical_data is not None:
-            df = pd.DataFrame(historical_data[1:11])
-            print(df)
-            #   stat                 time       ssboe     into     inth     intl     intc  intvwap   intv intoi        v oi
-            #     0   Ok  27-10-2023 15:28:00  1698400680  1379.10  1381.15  1379.00  1381.00  1379.96  15852     0  4626587  0
-            #     1   Ok  27-10-2023 15:27:00  1698400620  1381.75  1381.90  1379.00  1379.30  1379.96  36371     0  4610735  0
-            #     2   Ok  27-10-2023 15:26:00  1698400560  1381.65  1382.00  1381.65  1381.90  1381.31  33586     0  4574364  0
-            #     3   Ok  27-10-2023 15:25:00  1698400500  1381.65  1381.70  1381.55  1381.70  1381.36  31865     0  4540778  0
-            #     4   Ok  27-10-2023 15:24:00  1698400440  1381.70  1381.85  1381.65  1381.70  1381.74  24837     0  4508913  0
-            #     5   Ok  27-10-2023 15:23:00  1698400380  1381.60  1381.90  1381.60  1381.80  1382.74  31611     0  4484076  0
-            #     6   Ok  27-10-2023 15:22:00  1698400320  1380.75  1381.85  1380.75  1381.65  1381.38  29984     0  4452465  0
-            #     7   Ok  27-10-2023 15:21:00  1698400260  1380.70  1380.95  1380.25  1380.95  1379.90  28085     0  4422481  0
-            #     8   Ok  27-10-2023 15:20:00  1698400200  1381.00  1381.70  1380.25  1380.90  1381.08  72837     0  4394396  0
-            #     9   Ok  27-10-2023 15:19:00  1698400140  1380.35  1381.05  1380.30  1381.05  1381.44  27441     0  4321559  0
+        if traded_quantity == 1:
+            sell_quantity = 1
+        else:
+            temp = int(int(traded_quantity / lot_size) * lot_size)
+            sell_quantity = int(int(temp / 2) * 2)
+        # place_order("SELL") # TODO: @pannet1
+    else:
+        lowest_of_last_10_candles = historical_data_df["intl"].min()
+        ltp = ws.ltp.get(sym_config["exchange|token"])
+        stop_loss = ltp - lowest_of_last_10_candles
+        sym_config["stop_loss"] = stop_loss
+        allowable_quantity_as_per_risk = risk_per_trade / stop_loss
+        traded_quantity = min(
+            allowable_quantity_as_per_risk, allowable_quantity_as_per_capital
+        )
+        if traded_quantity == 1:
+            buy_quantity = 1
+        else:
+            temp = int(int(traded_quantity / lot_size) * lot_size)
+            buy_quantity = int(int(temp / 2) * 2)
+        # place_order("BUY") # TODO: @pannet1
+    return sym_config
 
-            risk_per_trade = int(sym_config["Risk per trade"])
-            capital_allocated = int(sym_config["Capital_allocated_in_lac"]) * 1_00_000
-            margin_required = int(sym_config["Margin required"])
 
-            allowable_quantity_as_per_capital = capital_allocated / margin_required
-            if sym_config["action"] == "SELL":
-                high_of_last_10_candles = df["inth"].max()
-                resp = broker.scriptinfo(sym_config["exchange"], token)
-                ltp = int(resp["lp"])
-                stop_loss = high_of_last_10_candles - ltp
-                allowable_quantity_as_per_risk = risk_per_trade / stop_loss
-                traded_quantity = min(
-                    allowable_quantity_as_per_risk, allowable_quantity_as_per_capital
-                )
-                if traded_quantity == 1:
-                    sell_quantity = 1
-                else:
-                    temp = int(int(traded_quantity / 45) * 45)
-                    sell_quantity = int(int(temp / 2) * 2)
-                # place_order("SELL")
-            else:
-                lowest_of_last_10_candles = df["inth"].max()
-                resp = broker.scriptinfo(sym_config["exchange"], token)
-                ltp = int(resp["lp"])
-                stop_loss = ltp - lowest_of_last_10_candles
-                allowable_quantity_as_per_risk = risk_per_trade / stop_loss
-                traded_quantity = min(
-                    allowable_quantity_as_per_risk, allowable_quantity_as_per_capital
-                )
-                if traded_quantity == 1:
-                    buy_quantity = 1
-                else:
-                    temp = int(int(traded_quantity / 45) * 45)
-                    buy_quantity = int(int(temp / 2) * 2)
-                # place_order("BUY")
+def place_first_order_for_strategy(sym_config, broker, ws):
+    historical_data_df = get_historical_data(sym_config, broker)
+    if historical_data_df.empty():
+        sym_config["strategy_started"] = False
+        return sym_config
+    return place_order_with_params(sym_config, historical_data_df)
 
-    # get_ltp()
+
+def is_start_time_reached(sym_config):
+    # check if the start time has reached as per configuration 
+    # and return True or False
+    entry_time = sym_config["strategy_entry_time"].split(":")
+    current_time = pendulum.now()
+    target_time = current_time.replace(hour=int(entry_time[0]), minute=int(entry_time[1]), second=0, microsecond=0)
+    return False if current_time < target_time else True 
+
+
+def execute_strategy(sym_config, broker, ws):
+    if not sym_config.get("strategy_started", None):
+        # strategy is not started, so start it 
+        # by checking if the start time has reached or not
+        if not is_start_time_reached(sym_config):
+            # start time has not reached, so wait for the next loop
+            return sym_config
+        # start time has reached, so proceed
+        sym_config["strategy_started"] = True
+        sym_config = place_first_order_for_strategy(sym_config, broker, ws)
+        if not sym_config.get("strategy_started", None):
+            return sym_config
+    
+            
+    else:
+        # strategy is started, so manage it
+        pass
 
 
 if __name__ == "__main__":
     configuration_details = load_config_to_list_of_dicts(
         csv_file_path=dir_path + "buy_sell_config.csv"
     )
-    print(configuration_details)
-    instrument_names = get_all_instrument_names(configuration_details)
-    print(instrument_names)
-
+    
     from omspy_brokers.finvasia import Finvasia
 
     BROKER = Finvasia
@@ -205,20 +168,27 @@ if __name__ == "__main__":
         if broker.authenticate():
             print("success")
 
-    ### init only once
-    ws = Wserver(broker, ["NSE|22", "BSE|522032"])
+    for sym_config in configuration_details:
+        sym_config["token"] = broker.instrument_symbol(
+            sym_config["exchange"], sym_config["Instrument_name"]
+        )
+        sym_config["exchange|token"] = sym_config["exchange"] + "|" + sym_config["token"]
 
-    initialise_strategy(
-        configuration_details, broker
-    )  # do the initial buy or sell and store the value in config by mutation
+    instruments_for_ltp = list((sym_config["exchange|token"] for sym_config in configuration_details))
+    ### init only once
+    ws = Wserver(broker, instruments_for_ltp)
+
+    # initialise_strategy(
+    #     configuration_details, broker
+    # )  # do the initial buy or sell and store the value in config by mutation
 
     while True:
         print(ws.ltp)
         time.sleep(1)
-    #     for config in configuration_details:
-    #         execute_strategy(
-    #             config, broker
-    #         )  # check for the ltp value and re-enter or buy/sell as per req
+        for config in configuration_details:
+            config = execute_strategy(
+                config, broker, ws
+            )  # check for the ltp value and re-enter or buy/sell as per req
     # Add a delay or perform other operations here
 
     # When done, close the WebSocket connection
