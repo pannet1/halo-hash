@@ -144,19 +144,28 @@ def check_for_condition_1(sym_config, broker):
     historical_data_df = get_historical_data(sym_config, broker)
     resampled_df = resample_df(historical_data_df, sym_config["Candle_timeframe_in_minutes"])
     latest_record = resampled_df.iloc[[0]]
+    condition_1 = latest_record["intc"] < latest_record["into"]
+    condition_2 = latest_record["into"] == latest_record["inth"]
+    condition_3 = latest_record["intc"] > latest_record["into"]
+    condition_4 = latest_record["into"] == latest_record["intl"]
     if sym_config["action"] == "BUY":
-        condition_1 = latest_record["intc"] < latest_record["into"]
-        condition_2 = latest_record["into"] == latest_record["inth"]
+        
         if condition_1 and condition_2:
             pass
             # Exit 50% quantity
+        elif condition_3 and condition_4:
+            pass
+            # reenter / add quantity
     else:
-        condition_1 = latest_record["intc"] > latest_record["into"]
-        condition_2 = latest_record["into"] == latest_record["intl"]
-        if condition_1 and condition_2:
+        if condition_3 and condition_4:
             pass
             # Exit 50% quantity
-
+        elif condition_1 and condition_2:
+            pass
+            # reenter / add quantity
+        elif ws.ltp[sym_config["exchange|token"]] >= sym_config["stop_loss"]:
+            pass
+            # reenter / add quantity
 
 def manage_strategy(sym_config, broker, ws):
     # check_for_condition_1() 
