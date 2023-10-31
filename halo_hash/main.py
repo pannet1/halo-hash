@@ -63,15 +63,18 @@ def load_config_to_list_of_dicts(csv_file_path):
 #     return configuration_details, strategies
 
 
-def get_historical_data(sym_config, broker):
+def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
     yesterday = datetime.now() - timedelta(days=1)
     yesterday_time_string = yesterday.strftime("%d-%m-%Y") + " 00:00:00"
     time_obj = time.strptime(yesterday_time_string, "%d-%m-%Y %H:%M:%S")
     start_time = time.mktime(time_obj)
     historical_data: list[dict] | None = broker.historical(
-            sym_config["exchange"], sym_config["token"], start_time, None
+            sym_config["exchange"], sym_config["token"], start_time, None, interval
         )
     if historical_data is not None:
+        if is_hieken_ashi:
+            heiken_aishi_df = historical_data # TODO @pannet1: convert ohlcv dataframe to heiken aishi df
+            return pd.DataFrame(heiken_aishi_df)
         return pd.DataFrame(historical_data)
     return pd.DataFrame()
 
@@ -103,6 +106,7 @@ def place_order_with_params(sym_config, historical_data_df):
         else:
             temp = int(int(traded_quantity / lot_size) * lot_size)
             sell_quantity = int(int(temp / 2) * 2)
+        sym_config["quantity"] = sell_quantity
         # place_order("SELL") # TODO: @pannet1
         # add all params to sym_config, this is required to manage the placed order
     else:
@@ -119,66 +123,69 @@ def place_order_with_params(sym_config, historical_data_df):
         else:
             temp = int(int(traded_quantity / lot_size) * lot_size)
             buy_quantity = int(int(temp / 2) * 2)
+        sym_config["quantity"] = buy_quantity
         # place_order("BUY") # TODO: @pannet1
     return sym_config
 
 
 def place_first_order_for_strategy(sym_config, broker, ws):
-    historical_data_df = get_historical_data(sym_config, broker)
+    historical_data_df = get_historical_data(sym_config, broker, 1)
     if historical_data_df.empty():
         sym_config["strategy_started"] = False
         return sym_config
     return place_order_with_params(sym_config, historical_data_df)
 
 
-def is_start_time_reached(sym_config):
-    # check if the start time has reached as per configuration 
+def is_time_reached(time_in_config):
+    # check if current time is greater than time as per configuration 
     # and return True or False
-    entry_time = sym_config["strategy_entry_time"].split(":")
+    entry_time = time_in_config.split(":")
     current_time = pendulum.now()
     target_time = current_time.replace(hour=int(entry_time[0]), minute=int(entry_time[1]), second=0, microsecond=0)
     return False if current_time < target_time else True 
 
 
-def check_for_condition_1(sym_config, broker):
-    historical_data_df = get_historical_data(sym_config, broker)
-    resampled_df = resample_df(historical_data_df, sym_config["Candle_timeframe_in_minutes"])
-    latest_record = resampled_df.iloc[[0]]
+def manage_strategy(sym_config, broker, ws):
+    historical_data_df = get_historical_data(sym_config, broker, int(sym_config["intermediate_Candle_timeframe_in_minutes"]))
+    latest_record = historical_data_df.iloc[[0]]
     condition_1 = latest_record["intc"] < latest_record["into"]
     condition_2 = latest_record["into"] == latest_record["inth"]
     condition_3 = latest_record["intc"] > latest_record["into"]
     condition_4 = latest_record["into"] == latest_record["intl"]
+    exit_historical_data_df = get_historical_data(sym_config, broker, int(sym_config["exit_Candle_timeframe_in_minutes"]))
+    exit_latest_record = exit_historical_data_df.iloc[[0]]
     if sym_config["action"] == "BUY":
-        
+        exit_condition_1 = exit_latest_record["intc"] < exit_latest_record["into"]
+        exit_condition_2 = exit_latest_record["into"] == exit_latest_record["inth"]
+        if is_time_reached(sym_config["strategy_exit_time"]) or (exit_condition_1 and exit_condition_2):
+            # exit all quantities # TODO @pannet1: use sym_config["quantity"]  for current quantity
+            # sym_config["quantity"] =  update quantity after placing order
+            send_msg_to_telegram(f"Exiting all quantities for {sym_config['Instrument_name']}")
         if condition_1 and condition_2:
-            pass
-            # Exit 50% quantity
+            # Exit 50% quantity # TODO @pannet1:
+            send_msg_to_telegram(f"Exiting 50% quantity for {sym_config['Instrument_name']}")
         elif condition_3 and condition_4:
-            pass
-            # reenter / add quantity
+            # reenter / add quantity # Check the account balance to determine, the quantity to be added # TODO @pannet1:
+            send_msg_to_telegram(f"re-entering / add quantity for {sym_config['Instrument_name']}")
     else:
-        if condition_3 and condition_4:
-            pass
+        exit_condition_1 = exit_latest_record["intc"] > exit_latest_record["into"]
+        exit_condition_2 = exit_latest_record["into"] == exit_latest_record["intl"]
+        if is_time_reached(sym_config["strategy_exit_time"]) or (exit_condition_1 and exit_condition_2):
+            # exit all quantities
+            send_msg_to_telegram(f"Exiting all quantities for {sym_config['Instrument_name']}")
+        elif condition_3 and condition_4:
             # Exit 50% quantity
-        elif condition_1 and condition_2:
-            pass
-            # reenter / add quantity
-        elif ws.ltp[sym_config["exchange|token"]] >= sym_config["stop_loss"]:
-            pass
-            # reenter / add quantity
-
-def manage_strategy(sym_config, broker, ws):
-    # check_for_condition_1() 
-    # check_for_condition_2()
-    # check_for_condition_3()
-    pass
+            send_msg_to_telegram(f"Exiting 50% quantity for {sym_config['Instrument_name']}")
+        elif (condition_1 and condition_2) or (ws.ltp[sym_config["exchange|token"]] >= sym_config["stop_loss"]): # TODO @pannet1: is this correct - ltp reaches stop loss
+            # reenter / add quantity # Check the account balance to determine, the quantity to be added
+            send_msg_to_telegram(f"re-entering / add quantity for {sym_config['Instrument_name']}")
 
 
 def execute_strategy(sym_config, broker, ws):
     if not sym_config.get("strategy_started", None):
         # strategy is not started, so start it 
         # by checking if the start time has reached or not
-        if not is_start_time_reached(sym_config):
+        if not is_time_reached(sym_config['strategy_entry_time']):
             # start time has not reached, so wait for the next loop
             return sym_config
         # start time has reached, so proceed
