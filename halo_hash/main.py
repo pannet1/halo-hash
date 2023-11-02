@@ -61,6 +61,15 @@ def load_config_to_list_of_dicts(csv_file_path):
 #         roll_over_occurred_today = True
 #     return configuration_details, strategies
 
+def ohlc_to_ha(df):
+    ha_df = pd.DataFrame()
+    ha_df["ha_close"] = (df['Open'] + df['High'] + df['Low'] + df['Close']) / 4
+    ha_df["ha_open"] = ((df["open"] + df["close"]) / 2).shift(1)
+    ha_df["ha_high"] =  df[['High', 'Open', 'Close']].max(axis=1)
+    ha_df["ha_low"] = df[['Low', 'Open', 'Close']].min(axis=1)
+    ha_df.loc[0, "ha_open"] = df["Open"].iloc[1]
+    return ha_df
+
 
 def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
     yesterday = datetime.now() - timedelta(days=1)
@@ -71,22 +80,22 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
         sym_config["exchange"], sym_config["token"], start_time, None, interval
     )
     if historical_data is not None:
-        if is_hieken_ashi:
-            heiken_aishi_df = (
-                historical_data
-            )  # TODO @pannet1: convert ohlcv dataframe to heiken aishi df
-            return pd.DataFrame(heiken_aishi_df)
-        return pd.DataFrame(historical_data)
+        historical_data_df = pd.DataFrame(historical_data)
+        if not is_hieken_ashi:
+            return historical_data_df
+        heiken_aishi_df = ohlc_to_ha(historical_data_df)
+        return heiken_aishi_df
+        
     return pd.DataFrame()
 
 
-def resample_df(df, interval):
-    df.set_index("time", inplace=True)
-    df = df.resample(f"{interval}T").mean()
-    return df
+# def resample_df(df, interval):
+#     df.set_index("time", inplace=True)
+#     df = df.resample(f"{interval}T").mean()
+#     return df
 
 
-def place_order_with_params(sym_config, historical_data_df):
+def place_order_with_params(sym_config, historical_data_df, broker):
     historical_data_df = historical_data_df.iloc[
         1:11
     ]  # take only 10 rows excluding the first row
@@ -128,7 +137,7 @@ def place_order_with_params(sym_config, historical_data_df):
             temp = int(int(traded_quantity / lot_size) * lot_size)
             buy_quantity = int(int(temp / 2) * 2)
         sym_config["quantity"] = buy_quantity
-        # place_order("BUY") # TODO: @pannet1
+        # place_order("BUY") # TODO: DONE: @pannet1
         exch = sym_config["exchange|token"].split("|")[0]
         args = dict(
             side="B",
@@ -141,7 +150,7 @@ def place_order_with_params(sym_config, historical_data_df):
             # price=prc, # in case of LMT order
             tag="halo_hash",
         )
-        # TODO @mahesh need broker object here
+        # TODO: DONE:  @mahesh need broker object here
         resp = broker.order_place(**args)
         if resp:
             # store position in excel for later use
@@ -155,7 +164,7 @@ def place_first_order_for_strategy(sym_config, broker, ws):
     if historical_data_df.empty():
         sym_config["strategy_started"] = False
         return sym_config
-    return place_order_with_params(sym_config, historical_data_df)
+    return place_order_with_params(sym_config, historical_data_df, broker)
 
 
 def is_time_reached(time_in_config):
