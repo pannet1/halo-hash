@@ -61,12 +61,13 @@ def load_config_to_list_of_dicts(csv_file_path):
 #         roll_over_occurred_today = True
 #     return configuration_details, strategies
 
+
 def ohlc_to_ha(df):
     ha_df = pd.DataFrame()
-    ha_df["ha_close"] = (df['Open'] + df['High'] + df['Low'] + df['Close']) / 4
+    ha_df["ha_close"] = (df["Open"] + df["High"] + df["Low"] + df["Close"]) / 4
     ha_df["ha_open"] = ((df["open"] + df["close"]) / 2).shift(1)
-    ha_df["ha_high"] =  df[['High', 'Open', 'Close']].max(axis=1)
-    ha_df["ha_low"] = df[['Low', 'Open', 'Close']].min(axis=1)
+    ha_df["ha_high"] = df[["High", "Open", "Close"]].max(axis=1)
+    ha_df["ha_low"] = df[["Low", "Open", "Close"]].min(axis=1)
     ha_df.loc[0, "ha_open"] = df["Open"].iloc[1]
     return ha_df
 
@@ -85,7 +86,7 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
             return historical_data_df
         heiken_aishi_df = ohlc_to_ha(historical_data_df)
         return heiken_aishi_df
-        
+
     return pd.DataFrame()
 
 
@@ -107,7 +108,8 @@ def place_order_with_params(sym_config, historical_data_df, broker):
 
     if sym_config["action"] == "SELL":
         high_of_last_10_candles = historical_data_df["inth"].max()
-        ltp = ws.ltp.get(sym_config["exchange|token"])
+        ltp = ws.ltp.get(sym_config["exchange|token"]
+        # TODO @mahesh fix string - int 
         stop_loss = high_of_last_10_candles - ltp
         sym_config["stop_loss"] = stop_loss
         allowable_quantity_as_per_risk = risk_per_trade / stop_loss
@@ -122,6 +124,18 @@ def place_order_with_params(sym_config, historical_data_df, broker):
         sym_config["quantity"] = sell_quantity
         # place_order("SELL") # TODO: @pannet1
         # add all params to sym_config, this is required to manage the placed order
+        exch = sym_config["exchange|token"].split("|")[0]
+        args = dict(
+            side="S",
+            product="M",  #  for NRML
+            exchange=exch,
+            quantity=abs(sym_config["quantity"]),
+            disclosed_quantity=abs(sym_config["quantity"]),
+            order_type="MKT",
+            symbol=sym_config["symbol"],
+            # price=prc, # in case of LMT order
+            tag="halo_hash",
+        )
     else:
         lowest_of_last_10_candles = historical_data_df["intl"].min()
         ltp = ws.ltp.get(sym_config["exchange|token"])
@@ -161,7 +175,8 @@ def place_order_with_params(sym_config, historical_data_df, broker):
 
 def place_first_order_for_strategy(sym_config, broker, ws):
     historical_data_df = get_historical_data(sym_config, broker, 1)
-    if historical_data_df.empty():
+    # @pannet1 boolean object is not callable
+    if historical_data_df.empty:
         sym_config["strategy_started"] = False
         return sym_config
     return place_order_with_params(sym_config, historical_data_df, broker)
