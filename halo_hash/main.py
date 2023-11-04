@@ -64,11 +64,11 @@ def load_config_to_list_of_dicts(csv_file_path):
 
 def ohlc_to_ha(df):
     ha_df = pd.DataFrame()
-    ha_df["ha_close"] = (df["Open"] + df["High"] + df["Low"] + df["Close"]) / 4
-    ha_df["ha_open"] = ((df["open"] + df["close"]) / 2).shift(1)
-    ha_df["ha_high"] = df[["High", "Open", "Close"]].max(axis=1)
-    ha_df["ha_low"] = df[["Low", "Open", "Close"]].min(axis=1)
-    ha_df.loc[0, "ha_open"] = df["Open"].iloc[1]
+    ha_df["ha_close"] = (df["into"] + df["inth"] + df["intl"] + df["intc"]) / 4
+    ha_df["ha_open"] = ((df["into"] + df["intc"]) / 2).shift(1)
+    ha_df["ha_high"] = df[["inth", "into", "intc"]].max(axis=1)
+    ha_df["ha_low"] = df[["intl", "into", "intc"]].min(axis=1)
+    ha_df.loc[0, "ha_open"] = df["into"].iloc[1]
     return ha_df
 
 
@@ -90,13 +90,7 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
     return pd.DataFrame()
 
 
-# def resample_df(df, interval):
-#     df.set_index("time", inplace=True)
-#     df = df.resample(f"{interval}T").mean()
-#     return df
-
-
-def place_order_with_params(sym_config, historical_data_df, broker):
+def place_order_with_params(sym_config, historical_data_df, broker, ws):
     historical_data_df = historical_data_df.iloc[
         1:11
     ]  # take only 10 rows excluding the first row
@@ -107,9 +101,9 @@ def place_order_with_params(sym_config, historical_data_df, broker):
     allowable_quantity_as_per_capital = capital_allocated / margin_required
 
     if sym_config["action"] == "SELL":
-        high_of_last_10_candles = historical_data_df["inth"].max()
-        ltp = ws.ltp.get(sym_config["exchange|token"]
-        # TODO @mahesh fix string - int 
+        high_of_last_10_candles = float(historical_data_df["inth"].max())
+        ltp = float(ws.ltp.get(sym_config["exchange|token"]))
+        # TODO: DONE: @mahesh fix string - int 
         stop_loss = high_of_last_10_candles - ltp
         sym_config["stop_loss"] = stop_loss
         allowable_quantity_as_per_risk = risk_per_trade / stop_loss
@@ -122,13 +116,12 @@ def place_order_with_params(sym_config, historical_data_df, broker):
             temp = int(int(traded_quantity / lot_size) * lot_size)
             sell_quantity = int(int(temp / 2) * 2)
         sym_config["quantity"] = sell_quantity
-        # place_order("SELL") # TODO: @pannet1
+        # place_order("SELL") # TODO:DONE:  @pannet1
         # add all params to sym_config, this is required to manage the placed order
-        exch = sym_config["exchange|token"].split("|")[0]
         args = dict(
             side="S",
             product="M",  #  for NRML
-            exchange=exch,
+            exchange=sym_config["exchange"],
             quantity=abs(sym_config["quantity"]),
             disclosed_quantity=abs(sym_config["quantity"]),
             order_type="MKT",
@@ -137,8 +130,8 @@ def place_order_with_params(sym_config, historical_data_df, broker):
             tag="halo_hash",
         )
     else:
-        lowest_of_last_10_candles = historical_data_df["intl"].min()
-        ltp = ws.ltp.get(sym_config["exchange|token"])
+        lowest_of_last_10_candles = float(historical_data_df["intl"].min())
+        ltp = float(ws.ltp.get(sym_config["exchange|token"]))
         stop_loss = ltp - lowest_of_last_10_candles
         sym_config["stop_loss"] = stop_loss
         allowable_quantity_as_per_risk = risk_per_trade / stop_loss
@@ -152,11 +145,10 @@ def place_order_with_params(sym_config, historical_data_df, broker):
             buy_quantity = int(int(temp / 2) * 2)
         sym_config["quantity"] = buy_quantity
         # place_order("BUY") # TODO: DONE: @pannet1
-        exch = sym_config["exchange|token"].split("|")[0]
         args = dict(
             side="B",
             product="M",  #  for NRML
-            exchange=exch,
+            exchange=sym_config["exchange"],
             quantity=abs(sym_config["quantity"]),
             disclosed_quantity=abs(sym_config["quantity"]),
             order_type="MKT",
@@ -167,7 +159,7 @@ def place_order_with_params(sym_config, historical_data_df, broker):
         # TODO: DONE:  @mahesh need broker object here
         resp = broker.order_place(**args)
         if resp:
-            # store position in excel for later use
+            # store position in excel for later use --> TODO: @pannet1: Need to check on this
             print(resp)
 
     return sym_config
@@ -175,11 +167,11 @@ def place_order_with_params(sym_config, historical_data_df, broker):
 
 def place_first_order_for_strategy(sym_config, broker, ws):
     historical_data_df = get_historical_data(sym_config, broker, 1)
-    # @pannet1 boolean object is not callable
+    # TODO: DONE: @pannet1 boolean object is not callable
     if historical_data_df.empty:
         sym_config["strategy_started"] = False
         return sym_config
-    return place_order_with_params(sym_config, historical_data_df, broker)
+    return place_order_with_params(sym_config, historical_data_df, broker, ws)
 
 
 def is_time_reached(time_in_config):
@@ -214,16 +206,64 @@ def manage_strategy(sym_config, broker, ws):
         ):
             # exit all quantities # TODO @pannet1: use sym_config["quantity"]  for current quantity
             # sym_config["quantity"] =  update quantity after placing order
+            args = dict(
+                side="S", #since exiting, B will give S
+                product="M",  #  for NRML
+                exchange=sym_config["exchange"],
+                quantity=abs(sym_config["quantity"]),
+                disclosed_quantity=abs(sym_config["quantity"]),
+                order_type="MKT",
+                symbol=sym_config["symbol"],
+                # price=prc, # in case of LMT order
+                tag="halo_hash",
+            )
+            resp = broker.order_place(**args)
+            if resp:
+                # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                print(resp)
+            sym_config["quantity"] = 0
             send_msg_to_telegram(
                 f"Exiting all quantities for {sym_config['Instrument_name']}"
             )
         if condition_1 and condition_2:
             # Exit 50% quantity # TODO @pannet1:
+            exit_quantity = abs(abs(sym_config["quantity"]) / 2)
+            args = dict(
+                side="S", #since exiting, B will give S
+                product="M",  #  for NRML
+                exchange=sym_config["exchange"],
+                quantity=exit_quantity,
+                disclosed_quantity=exit_quantity,
+                order_type="MKT",
+                symbol=sym_config["symbol"],
+                # price=prc, # in case of LMT order
+                tag="halo_hash",
+            )
+            resp = broker.order_place(**args)
+            if resp:
+                # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                print(resp)
+            sym_config["quantity"] = exit_quantity
             send_msg_to_telegram(
                 f"Exiting 50% quantity for {sym_config['Instrument_name']}"
             )
         elif condition_3 and condition_4:
             # reenter / add quantity # Check the account balance to determine, the quantity to be added # TODO @pannet1:
+            args = dict(
+                side="B", #since re-enter,
+                product="M",  #  for NRML
+                exchange=sym_config["exchange"],
+                quantity=abs(sym_config["quantity"]),
+                disclosed_quantity=abs(sym_config["quantity"]),
+                order_type="MKT",
+                symbol=sym_config["symbol"],
+                # price=prc, # in case of LMT order
+                tag="halo_hash",
+            )
+            resp = broker.order_place(**args)
+            if resp:
+                # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                print(resp)
             send_msg_to_telegram(
                 f"re-entering / add quantity for {sym_config['Instrument_name']}"
             )
@@ -234,18 +274,66 @@ def manage_strategy(sym_config, broker, ws):
             exit_condition_1 and exit_condition_2
         ):
             # exit all quantities
+            args = dict(
+                side="B", #since exiting, S will give B
+                product="M",  #  for NRML
+                exchange=sym_config["exchange"],
+                quantity=abs(sym_config["quantity"]),
+                disclosed_quantity=abs(sym_config["quantity"]),
+                order_type="MKT",
+                symbol=sym_config["symbol"],
+                # price=prc, # in case of LMT order
+                tag="halo_hash",
+            )
+            resp = broker.order_place(**args)
+            if resp:
+                # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                print(resp)
+            sym_config["quantity"] = 0
             send_msg_to_telegram(
                 f"Exiting all quantities for {sym_config['Instrument_name']}"
             )
         elif condition_3 and condition_4:
             # Exit 50% quantity
+            exit_quantity = abs(abs(sym_config["quantity"]) / 2)
+            args = dict(
+                side="B", #since exiting, S will give B
+                product="M",  #  for NRML
+                exchange=sym_config["exchange"],
+                quantity=exit_quantity,
+                disclosed_quantity=exit_quantity,
+                order_type="MKT",
+                symbol=sym_config["symbol"],
+                # price=prc, # in case of LMT order
+                tag="halo_hash",
+            )
+            resp = broker.order_place(**args)
+            if resp:
+                # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                print(resp)
+            sym_config["quantity"] = exit_quantity
             send_msg_to_telegram(
                 f"Exiting 50% quantity for {sym_config['Instrument_name']}"
             )
         elif (condition_1 and condition_2) or (
-            ws.ltp[sym_config["exchange|token"]] >= sym_config["stop_loss"]
+            float(ws.ltp[sym_config["exchange|token"]]) >= sym_config["stop_loss"]
         ):  # TODO @pannet1: is this correct - ltp reaches stop loss
             # reenter / add quantity # Check the account balance to determine, the quantity to be added
+            args = dict(
+                side="S", #since re-enter,
+                product="M",  #  for NRML
+                exchange=sym_config["exchange"],
+                quantity=abs(sym_config["quantity"]),
+                disclosed_quantity=abs(sym_config["quantity"]),
+                order_type="MKT",
+                symbol=sym_config["symbol"],
+                # price=prc, # in case of LMT order
+                tag="halo_hash",
+            )
+            resp = broker.order_place(**args)
+            if resp:
+                # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                print(resp)
             send_msg_to_telegram(
                 f"re-entering / add quantity for {sym_config['Instrument_name']}"
             )
