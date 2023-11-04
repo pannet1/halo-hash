@@ -356,8 +356,9 @@ def execute_strategy(sym_config, broker, ws):
 
 
 if __name__ == "__main__":
+    strategy_path = "halo_hash/strategies/"
     configuration_details = load_config_to_list_of_dicts(
-        csv_file_path=dir_path + "buy_sell_config.csv"
+        csv_file_path=strategy_path + "buy_sell_config.csv"
     )
 
     from omspy_brokers.finvasia import Finvasia

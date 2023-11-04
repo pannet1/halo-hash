@@ -1,0 +1,12 @@
+action,SELL,SELL,BUY,BUY
+Instrument_name,INFY,SBIN,SBIN,INFY
+exchange,NSE,NSE,NSE,NSE
+intermediate_Candle_timeframe_in_minutes,5,15,5,15
+exit_Candle_timeframe_in_minutes,15,1,1,1
+Capital_allocated_in_lac,1,1,1,1
+Risk per trade,10000,10000,10000,10000
+Margin required,5000,5000,5000,5000
+Rollover_symbol_name,INFY_EEEE,SNIN-EQQQQ,INFY_EEEE,SNIN-EQQQQ
+strategy_entry_time,9:16,9:16,9:16,9:16
+strategy_exit_time,15:15,15:15,15:15,15:15
+lot_size,1,2,3,4
