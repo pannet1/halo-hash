@@ -356,7 +356,7 @@ def execute_strategy(sym_config, broker, ws):
 
 
 if __name__ == "__main__":
-    strategy_path = "halo_hash/strategies/"
+    strategy_path = "strategies/"
     configuration_details = load_config_to_list_of_dicts(
         csv_file_path=strategy_path + "buy_sell_config.csv"
     )
