@@ -18,7 +18,7 @@ def send_msg_to_telegram(message):
     print(requests.get(url).json())
 
 
-def load_config_to_list_of_dicts(csv_file_path):
+def load_config_to_list_of_dicts(csv_file_path, shortlisted_strategies):
     """
     output example:
     [
@@ -36,7 +36,11 @@ def load_config_to_list_of_dicts(csv_file_path):
     for i in range(len(data_rows[0])):
         for j in range(len(data_rows)):
             list_of_dicts[i][headers[j]] = data_rows[j][i]
-    return list_of_dicts
+    shortlisted_list_of_dicts = []
+    for d in list_of_dicts:
+        if (d["action"], d["Instrument_name"]) in shortlisted_strategies:
+            shortlisted_list_of_dicts.append(d)
+    return shortlisted_list_of_dicts
 
 
 # def get_current_ltp(broker, instrument_name):
@@ -129,6 +133,18 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             # price=prc, # in case of LMT order
             tag="halo_hash",
         )
+        resp = broker.order_place(**args)
+        if resp:
+            # store position in excel for later use --> TODO: @pannet1: Need to check on this
+            orders = broker.orders()
+            if "order_id" in resp:
+                for order in orders:
+                    if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                        # successfully order creation
+                        with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
+                            f.write(sym_config["action"], sym_config["instrument_name"], sym_config["quantity"], "S")
+                        pass
+            print(resp)
     else:
         lowest_of_last_10_candles = float(historical_data_df["intl"].min())
         ltp = float(ws.ltp.get(sym_config["exchange|token"]))
@@ -160,6 +176,14 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         resp = broker.order_place(**args)
         if resp:
             # store position in excel for later use --> TODO: @pannet1: Need to check on this
+            orders = broker.orders()
+            if "order_id" in resp:
+                for order in orders:
+                    if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                        # successfully order creation
+                        with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
+                            f.write(sym_config["action"], sym_config["instrument_name"], sym_config["quantity"], "B")
+                        pass
             print(resp)
 
     return sym_config
@@ -220,6 +244,14 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             if resp:
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                orders = broker.orders()
+                if "order_id" in resp:
+                    for order in orders:
+                        if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                            # successfully order creation
+                            with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
+                                f.write(sym_config["action"], sym_config["instrument_name"], sym_config["quantity"], "S")
+                            pass
                 print(resp)
             sym_config["quantity"] = 0
             send_msg_to_telegram(
@@ -242,6 +274,14 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             if resp:
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                orders = broker.orders()
+                if "order_id" in resp:
+                    for order in orders:
+                        if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                            # successfully order creation
+                            with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
+                                f.write(sym_config["action"], sym_config["instrument_name"], sym_config["quantity"], "S")
+                            pass
                 print(resp)
             sym_config["quantity"] = exit_quantity
             send_msg_to_telegram(
@@ -263,6 +303,14 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             if resp:
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                orders = broker.orders()
+                if "order_id" in resp:
+                    for order in orders:
+                        if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                            # successfully order creation
+                            with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
+                                f.write(sym_config["action"], sym_config["instrument_name"], sym_config["quantity"], "B")
+                            pass
                 print(resp)
             send_msg_to_telegram(
                 f"re-entering / add quantity for {sym_config['Instrument_name']}"
@@ -286,10 +334,19 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
+            sym_config["quantity"] = 0
             if resp:
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                orders = broker.orders()
+                if "order_id" in resp:
+                    for order in orders:
+                        if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                            # successfully order creation
+                            with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
+                                f.write(sym_config["action"], sym_config["instrument_name"], sym_config["quantity"], "B")
+                            pass
                 print(resp)
-            sym_config["quantity"] = 0
+            
             send_msg_to_telegram(
                 f"Exiting all quantities for {sym_config['Instrument_name']}"
             )
@@ -310,6 +367,14 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             if resp:
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                orders = broker.orders()
+                if "order_id" in resp:
+                    for order in orders:
+                        if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                            # successfully order creation
+                            with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
+                                f.write(sym_config["action"], sym_config["instrument_name"], exit_quantity, "B")
+                            pass
                 print(resp)
             sym_config["quantity"] = exit_quantity
             send_msg_to_telegram(
@@ -333,6 +398,14 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             if resp:
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                orders = broker.orders()
+                if "order_id" in resp:
+                    for order in orders:
+                        if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                            # successfully order creation
+                            with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
+                                f.write(sym_config["action"], sym_config["instrument_name"], exit_quantity, "S")
+                            pass
                 print(resp)
             send_msg_to_telegram(
                 f"re-entering / add quantity for {sym_config['Instrument_name']}"
@@ -355,10 +428,26 @@ def execute_strategy(sym_config, broker, ws):
     manage_strategy(sym_config, broker, ws)
 
 
+def read_strategies(path):
+    shortlisted_strategies = []
+    with open(path) as f:
+        strategies = f.readlines()
+    
+    for line in strategies:
+        shortlisted_strategies.append(line.split(","))
+    return shortlisted_strategies
+
 if __name__ == "__main__":
     strategy_path = "strategies/"
+    with open("temp_position_book.csv") as f:
+        open_positions = f.readlines()
+    open_positions = [(position.split(",")[0], position.split(",")[1]) for position in open_positions]
+    # TODO: check position book at start to validate if they are still valid or canceled/closed by eod process yesterday 
+    # TODO: when to clear this temp position book? can we do it at SOD daily? and not do it intermittently? 
+    # Clear position book and update it as per position book today
+    shortlisted_strategies = read_strategies(strategy_path+"1_strategy/short_listed.csv")
     configuration_details = load_config_to_list_of_dicts(
-        csv_file_path=strategy_path + "buy_sell_config.csv"
+        strategy_path + "buy_sell_config.csv", shortlisted_strategies+open_positions
     )
 
     from omspy_brokers.finvasia import Finvasia
