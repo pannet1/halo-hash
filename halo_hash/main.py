@@ -107,7 +107,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
     if sym_config["action"] == "SELL":
         high_of_last_10_candles = float(historical_data_df["inth"].max())
         ltp = float(ws.ltp.get(sym_config["exchange|token"]))
-        # TODO: DONE: @mahesh fix string - int 
+        # TODO: DONE: @mahesh fix string - int
         stop_loss = high_of_last_10_candles - ltp
         sym_config["stop_loss"] = stop_loss
         allowable_quantity_as_per_risk = risk_per_trade / stop_loss
@@ -139,10 +139,20 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             orders = broker.orders()
             if "order_id" in resp:
                 for order in orders:
-                    if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                    if (
+                        order["order_id"] == resp["order_id"]
+                        and order["order_status"] == "completed"
+                    ):
                         # successfully order creation
-                        with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
-                            f.write(sym_config["action"], sym_config["instrument_name"], sym_config["quantity"], "S")
+                        with open(
+                            "temp_position_book.csv", "a"
+                        ) as f:  # TODO: update the filename and location
+                            f.write(
+                                sym_config["action"],
+                                sym_config["instrument_name"],
+                                sym_config["quantity"],
+                                "S",
+                            )
                         pass
             print(resp)
     else:
@@ -179,10 +189,20 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             orders = broker.orders()
             if "order_id" in resp:
                 for order in orders:
-                    if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                    if (
+                        order["order_id"] == resp["order_id"]
+                        and order["order_status"] == "completed"
+                    ):
                         # successfully order creation
-                        with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
-                            f.write(sym_config["action"], sym_config["instrument_name"], sym_config["quantity"], "B")
+                        with open(
+                            "temp_position_book.csv", "a"
+                        ) as f:  # TODO: update the filename and location
+                            f.write(
+                                sym_config["action"],
+                                sym_config["instrument_name"],
+                                sym_config["quantity"],
+                                "B",
+                            )
                         pass
             print(resp)
 
@@ -231,7 +251,7 @@ def manage_strategy(sym_config, broker, ws):
             # exit all quantities # TODO @pannet1: use sym_config["quantity"]  for current quantity
             # sym_config["quantity"] =  update quantity after placing order
             args = dict(
-                side="S", #since exiting, B will give S
+                side="S",  # since exiting, B will give S
                 product="M",  #  for NRML
                 exchange=sym_config["exchange"],
                 quantity=abs(sym_config["quantity"]),
@@ -247,10 +267,20 @@ def manage_strategy(sym_config, broker, ws):
                 orders = broker.orders()
                 if "order_id" in resp:
                     for order in orders:
-                        if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                        if (
+                            order["order_id"] == resp["order_id"]
+                            and order["order_status"] == "completed"
+                        ):
                             # successfully order creation
-                            with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
-                                f.write(sym_config["action"], sym_config["instrument_name"], sym_config["quantity"], "S")
+                            with open(
+                                "temp_position_book.csv", "a"
+                            ) as f:  # TODO: update the filename and location
+                                f.write(
+                                    sym_config["action"],
+                                    sym_config["instrument_name"],
+                                    sym_config["quantity"],
+                                    "S",
+                                )
                             pass
                 print(resp)
             sym_config["quantity"] = 0
@@ -261,7 +291,7 @@ def manage_strategy(sym_config, broker, ws):
             # Exit 50% quantity # TODO @pannet1:
             exit_quantity = abs(abs(sym_config["quantity"]) / 2)
             args = dict(
-                side="S", #since exiting, B will give S
+                side="S",  # since exiting, B will give S
                 product="M",  #  for NRML
                 exchange=sym_config["exchange"],
                 quantity=exit_quantity,
@@ -277,10 +307,20 @@ def manage_strategy(sym_config, broker, ws):
                 orders = broker.orders()
                 if "order_id" in resp:
                     for order in orders:
-                        if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                        if (
+                            order["order_id"] == resp["order_id"]
+                            and order["order_status"] == "completed"
+                        ):
                             # successfully order creation
-                            with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
-                                f.write(sym_config["action"], sym_config["instrument_name"], sym_config["quantity"], "S")
+                            with open(
+                                "temp_position_book.csv", "a"
+                            ) as f:  # TODO: update the filename and location
+                                f.write(
+                                    sym_config["action"],
+                                    sym_config["instrument_name"],
+                                    sym_config["quantity"],
+                                    "S",
+                                )
                             pass
                 print(resp)
             sym_config["quantity"] = exit_quantity
@@ -290,7 +330,7 @@ def manage_strategy(sym_config, broker, ws):
         elif condition_3 and condition_4:
             # reenter / add quantity # Check the account balance to determine, the quantity to be added # TODO @pannet1:
             args = dict(
-                side="B", #since re-enter,
+                side="B",  # since re-enter,
                 product="M",  #  for NRML
                 exchange=sym_config["exchange"],
                 quantity=abs(sym_config["quantity"]),
@@ -306,10 +346,20 @@ def manage_strategy(sym_config, broker, ws):
                 orders = broker.orders()
                 if "order_id" in resp:
                     for order in orders:
-                        if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                        if (
+                            order["order_id"] == resp["order_id"]
+                            and order["order_status"] == "completed"
+                        ):
                             # successfully order creation
-                            with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
-                                f.write(sym_config["action"], sym_config["instrument_name"], sym_config["quantity"], "B")
+                            with open(
+                                "temp_position_book.csv", "a"
+                            ) as f:  # TODO: update the filename and location
+                                f.write(
+                                    sym_config["action"],
+                                    sym_config["instrument_name"],
+                                    sym_config["quantity"],
+                                    "B",
+                                )
                             pass
                 print(resp)
             send_msg_to_telegram(
@@ -323,7 +373,7 @@ def manage_strategy(sym_config, broker, ws):
         ):
             # exit all quantities
             args = dict(
-                side="B", #since exiting, S will give B
+                side="B",  # since exiting, S will give B
                 product="M",  #  for NRML
                 exchange=sym_config["exchange"],
                 quantity=abs(sym_config["quantity"]),
@@ -340,13 +390,23 @@ def manage_strategy(sym_config, broker, ws):
                 orders = broker.orders()
                 if "order_id" in resp:
                     for order in orders:
-                        if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                        if (
+                            order["order_id"] == resp["order_id"]
+                            and order["order_status"] == "completed"
+                        ):
                             # successfully order creation
-                            with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
-                                f.write(sym_config["action"], sym_config["instrument_name"], sym_config["quantity"], "B")
+                            with open(
+                                "temp_position_book.csv", "a"
+                            ) as f:  # TODO: update the filename and location
+                                f.write(
+                                    sym_config["action"],
+                                    sym_config["instrument_name"],
+                                    sym_config["quantity"],
+                                    "B",
+                                )
                             pass
                 print(resp)
-            
+
             send_msg_to_telegram(
                 f"Exiting all quantities for {sym_config['Instrument_name']}"
             )
@@ -354,7 +414,7 @@ def manage_strategy(sym_config, broker, ws):
             # Exit 50% quantity
             exit_quantity = abs(abs(sym_config["quantity"]) / 2)
             args = dict(
-                side="B", #since exiting, S will give B
+                side="B",  # since exiting, S will give B
                 product="M",  #  for NRML
                 exchange=sym_config["exchange"],
                 quantity=exit_quantity,
@@ -367,13 +427,32 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             if resp:
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
+                # check order status from the below gist
+                # https://gist.github.com/pannet1/53773f6e4e67f74311024e1e25f92a10
+                # read the position book once in the 1st run and keep overwritting with current
+                # positions every 15 minutes or so. this way when the program terminates abruptly
+                # we will have a continuity
+                #
+                # we keep entering all the transactions both entry and exit in this file.
+                # so when we aggregate we know the current position on hand. you may need to
+                # add the date also
                 orders = broker.orders()
                 if "order_id" in resp:
                     for order in orders:
-                        if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                        if (
+                            order["order_id"] == resp["order_id"]
+                            and order["order_status"] == "completed"
+                        ):
                             # successfully order creation
-                            with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
-                                f.write(sym_config["action"], sym_config["instrument_name"], exit_quantity, "B")
+                            with open(
+                                "temp_position_book.csv", "a"
+                            ) as f:  # TODO: update the filename and location
+                                f.write(
+                                    sym_config["action"],
+                                    sym_config["instrument_name"],
+                                    exit_quantity,
+                                    "B",
+                                )
                             pass
                 print(resp)
             sym_config["quantity"] = exit_quantity
@@ -384,8 +463,11 @@ def manage_strategy(sym_config, broker, ws):
             float(ws.ltp[sym_config["exchange|token"]]) >= sym_config["stop_loss"]
         ):  # TODO @pannet1: is this correct - ltp reaches stop loss
             # reenter / add quantity # Check the account balance to determine, the quantity to be added
+            # you have the capital for this strategy which is for every trade of this strategy.
+            # you know the ltp when you ltp, so based on that we can calculate the margin required
+            # for a trade.
             args = dict(
-                side="S", #since re-enter,
+                side="S",  # since re-enter,
                 product="M",  #  for NRML
                 exchange=sym_config["exchange"],
                 quantity=abs(sym_config["quantity"]),
@@ -401,10 +483,20 @@ def manage_strategy(sym_config, broker, ws):
                 orders = broker.orders()
                 if "order_id" in resp:
                     for order in orders:
-                        if order["order_id"] == resp["order_id"] and order["order_status"] == "completed":
+                        if (
+                            order["order_id"] == resp["order_id"]
+                            and order["order_status"] == "completed"
+                        ):
                             # successfully order creation
-                            with open('temp_position_book.csv', 'a') as f: # TODO: update the filename and location
-                                f.write(sym_config["action"], sym_config["instrument_name"], exit_quantity, "S")
+                            with open(
+                                "temp_position_book.csv", "a"
+                            ) as f:  # TODO: update the filename and location
+                                f.write(
+                                    sym_config["action"],
+                                    sym_config["instrument_name"],
+                                    exit_quantity,
+                                    "S",
+                                )
                             pass
                 print(resp)
             send_msg_to_telegram(
@@ -432,22 +524,30 @@ def read_strategies(path):
     shortlisted_strategies = []
     with open(path) as f:
         strategies = f.readlines()
-    
+
     for line in strategies:
         shortlisted_strategies.append(line.split(","))
     return shortlisted_strategies
+
 
 if __name__ == "__main__":
     strategy_path = "strategies/"
     with open("temp_position_book.csv") as f:
         open_positions = f.readlines()
-    open_positions = [(position.split(",")[0], position.split(",")[1]) for position in open_positions]
-    # TODO: check position book at start to validate if they are still valid or canceled/closed by eod process yesterday 
-    # TODO: when to clear this temp position book? can we do it at SOD daily? and not do it intermittently? 
+    open_positions = [
+        (position.split(",")[0], position.split(",")[1]) for position in open_positions
+    ]
+    # TODO: check position book at start to validate if they are still valid or canceled/closed by eod process yesterday
+    # TODO: when to clear this temp position book? can we do it at SOD daily? and not do it intermittently?
     # Clear position book and update it as per position book today
-    shortlisted_strategies = read_strategies(strategy_path+"1_strategy/short_listed.csv")
+    # @mahesh please see above todo.
+    # record each transaction. load transaction at the beginning of run.
+
+    shortlisted_strategies = read_strategies(
+        strategy_path + "1_strategy/short_listed.csv"
+    )
     configuration_details = load_config_to_list_of_dicts(
-        strategy_path + "buy_sell_config.csv", shortlisted_strategies+open_positions
+        strategy_path + "buy_sell_config.csv", shortlisted_strategies + open_positions
     )
 
     from omspy_brokers.finvasia import Finvasia
