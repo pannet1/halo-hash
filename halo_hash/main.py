@@ -184,28 +184,11 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             tag="halo_hash",
         )
         resp = broker.order_place(**args)
-        if resp:
+        print(resp)
+        if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
             # store position in excel for later use --> TODO: @pannet1: Need to check on this
-            orders = broker.orders()
-            if "order_id" in resp:
-                for order in orders:
-                    if (
-                        order["order_id"] == resp["order_id"]
-                        and order["order_status"] == "completed"
-                    ):
-                        # successfully order creation
-                        with open(
-                            "temp_position_book.csv", "a"
-                        ) as f:  # TODO: update the filename and location
-                            f.write(
-                                sym_config["action"],
-                                sym_config["instrument_name"],
-                                sym_config["quantity"],
-                                "B",
-                            )
-                        pass
-            print(resp)
-
+            details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
+            save_to_local_position_book(details)
     return sym_config
 
 
@@ -261,27 +244,12 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            if resp:
+            print(resp)
+            if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
-                orders = broker.orders()
-                if "order_id" in resp:
-                    for order in orders:
-                        if (
-                            order["order_id"] == resp["order_id"]
-                            and order["order_status"] == "completed"
-                        ):
-                            # successfully order creation
-                            with open(
-                                "temp_position_book.csv", "a"
-                            ) as f:  # TODO: update the filename and location
-                                f.write(
-                                    sym_config["action"],
-                                    sym_config["instrument_name"],
-                                    sym_config["quantity"],
-                                    "S",
-                                )
-                            pass
-                print(resp)
+                details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
+                save_to_local_position_book(details)
+            
             sym_config["quantity"] = 0
             send_msg_to_telegram(
                 f"Exiting all quantities for {sym_config['Instrument_name']}"
@@ -301,27 +269,13 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            if resp:
+            
+            print(resp)
+            if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
-                orders = broker.orders()
-                if "order_id" in resp:
-                    for order in orders:
-                        if (
-                            order["order_id"] == resp["order_id"]
-                            and order["order_status"] == "completed"
-                        ):
-                            # successfully order creation
-                            with open(
-                                "temp_position_book.csv", "a"
-                            ) as f:  # TODO: update the filename and location
-                                f.write(
-                                    sym_config["action"],
-                                    sym_config["instrument_name"],
-                                    sym_config["quantity"],
-                                    "S",
-                                )
-                            pass
-                print(resp)
+                details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
+                save_to_local_position_book(details)
+            
             sym_config["quantity"] = exit_quantity
             send_msg_to_telegram(
                 f"Exiting 50% quantity for {sym_config['Instrument_name']}"
@@ -340,27 +294,12 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            if resp:
+            print(resp)
+            if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
-                orders = broker.orders()
-                if "order_id" in resp:
-                    for order in orders:
-                        if (
-                            order["order_id"] == resp["order_id"]
-                            and order["order_status"] == "completed"
-                        ):
-                            # successfully order creation
-                            with open(
-                                "temp_position_book.csv", "a"
-                            ) as f:  # TODO: update the filename and location
-                                f.write(
-                                    sym_config["action"],
-                                    sym_config["instrument_name"],
-                                    sym_config["quantity"],
-                                    "B",
-                                )
-                            pass
-                print(resp)
+                details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
+                save_to_local_position_book(details)
+            
             send_msg_to_telegram(
                 f"re-entering / add quantity for {sym_config['Instrument_name']}"
             )
@@ -383,29 +322,13 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            sym_config["quantity"] = 0
-            if resp:
+            print(resp)
+            if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
-                orders = broker.orders()
-                if "order_id" in resp:
-                    for order in orders:
-                        if (
-                            order["order_id"] == resp["order_id"]
-                            and order["order_status"] == "completed"
-                        ):
-                            # successfully order creation
-                            with open(
-                                "temp_position_book.csv", "a"
-                            ) as f:  # TODO: update the filename and location
-                                f.write(
-                                    sym_config["action"],
-                                    sym_config["instrument_name"],
-                                    sym_config["quantity"],
-                                    "B",
-                                )
-                            pass
-                print(resp)
-
+                details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
+                save_to_local_position_book(details)
+            
+            sym_config["quantity"] = 0
             send_msg_to_telegram(
                 f"Exiting all quantities for {sym_config['Instrument_name']}"
             )
@@ -424,36 +347,22 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            if resp:
+            # store position in excel for later use --> TODO: @pannet1: Need to check on this
+            # check order status from the below gist
+            # https://gist.github.com/pannet1/53773f6e4e67f74311024e1e25f92a10
+            # read the position book once in the 1st run and keep overwritting with current
+            # positions every 15 minutes or so. this way when the program terminates abruptly
+            # we will have a continuity
+            #
+            # we keep entering all the transactions both entry and exit in this file.
+            # so when we aggregate we know the current position on hand. you may need to
+            # add the date also
+            print(resp)
+            if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
-                # check order status from the below gist
-                # https://gist.github.com/pannet1/53773f6e4e67f74311024e1e25f92a10
-                # read the position book once in the 1st run and keep overwritting with current
-                # positions every 15 minutes or so. this way when the program terminates abruptly
-                # we will have a continuity
-                #
-                # we keep entering all the transactions both entry and exit in this file.
-                # so when we aggregate we know the current position on hand. you may need to
-                # add the date also
-                orders = broker.orders()
-                if "order_id" in resp:
-                    for order in orders:
-                        if (
-                            order["order_id"] == resp["order_id"]
-                            and order["order_status"] == "completed"
-                        ):
-                            # successfully order creation
-                            with open(
-                                "temp_position_book.csv", "a"
-                            ) as f:  # TODO: update the filename and location
-                                f.write(
-                                    sym_config["action"],
-                                    sym_config["instrument_name"],
-                                    exit_quantity,
-                                    "B",
-                                )
-                            pass
-                print(resp)
+                details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
+                save_to_local_position_book(details)
+            
             sym_config["quantity"] = exit_quantity
             send_msg_to_telegram(
                 f"Exiting 50% quantity for {sym_config['Instrument_name']}"
@@ -477,27 +386,11 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            if resp:
+            print(resp)
+            if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
                 # store position in excel for later use --> TODO: @pannet1: Need to check on this
-                orders = broker.orders()
-                if "order_id" in resp:
-                    for order in orders:
-                        if (
-                            order["order_id"] == resp["order_id"]
-                            and order["order_status"] == "completed"
-                        ):
-                            # successfully order creation
-                            with open(
-                                "temp_position_book.csv", "a"
-                            ) as f:  # TODO: update the filename and location
-                                f.write(
-                                    sym_config["action"],
-                                    sym_config["instrument_name"],
-                                    exit_quantity,
-                                    "S",
-                                )
-                            pass
-                print(resp)
+                details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
+                save_to_local_position_book(details)
             send_msg_to_telegram(
                 f"re-entering / add quantity for {sym_config['Instrument_name']}"
             )
