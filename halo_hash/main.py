@@ -94,6 +94,24 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
     return pd.DataFrame()
 
 
+def is_order_completed(broker, order_id):
+    orders = broker.orders()
+    for order in orders:
+        if (
+            order["order_id"] == order_id
+            and order["order_status"] == "completed" # TODO: Check the fields
+        ):
+            return True
+    return False
+
+def save_to_local_position_book(content_to_save):
+    local_position_book = "temp_position_book.csv" # TODO: change name and location
+    with open(
+        local_position_book, "a"
+    ) as f:  
+        f.write(content_to_save + "\n")
+
+
 def place_order_with_params(sym_config, historical_data_df, broker, ws):
     historical_data_df = historical_data_df.iloc[
         1:11
@@ -107,7 +125,6 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
     if sym_config["action"] == "SELL":
         high_of_last_10_candles = float(historical_data_df["inth"].max())
         ltp = float(ws.ltp.get(sym_config["exchange|token"]))
-        # TODO: DONE: @mahesh fix string - int
         stop_loss = high_of_last_10_candles - ltp
         sym_config["stop_loss"] = stop_loss
         allowable_quantity_as_per_risk = risk_per_trade / stop_loss
@@ -134,27 +151,12 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             tag="halo_hash",
         )
         resp = broker.order_place(**args)
-        if resp:
+        print(resp)
+        if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
             # store position in excel for later use --> TODO: @pannet1: Need to check on this
-            orders = broker.orders()
-            if "order_id" in resp:
-                for order in orders:
-                    if (
-                        order["order_id"] == resp["order_id"]
-                        and order["order_status"] == "completed"
-                    ):
-                        # successfully order creation
-                        with open(
-                            "temp_position_book.csv", "a"
-                        ) as f:  # TODO: update the filename and location
-                            f.write(
-                                sym_config["action"],
-                                sym_config["instrument_name"],
-                                sym_config["quantity"],
-                                "S",
-                            )
-                        pass
-            print(resp)
+            details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
+            save_to_local_position_book(details)
+            
     else:
         lowest_of_last_10_candles = float(historical_data_df["intl"].min())
         ltp = float(ws.ltp.get(sym_config["exchange|token"]))
@@ -170,7 +172,6 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             temp = int(int(traded_quantity / lot_size) * lot_size)
             buy_quantity = int(int(temp / 2) * 2)
         sym_config["quantity"] = buy_quantity
-        # place_order("BUY") # TODO: DONE: @pannet1
         args = dict(
             side="B",
             product="M",  #  for NRML
@@ -182,7 +183,6 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             # price=prc, # in case of LMT order
             tag="halo_hash",
         )
-        # TODO: DONE:  @mahesh need broker object here
         resp = broker.order_place(**args)
         if resp:
             # store position in excel for later use --> TODO: @pannet1: Need to check on this
@@ -211,7 +211,6 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
 
 def place_first_order_for_strategy(sym_config, broker, ws):
     historical_data_df = get_historical_data(sym_config, broker, 1)
-    # TODO: DONE: @pannet1 boolean object is not callable
     if historical_data_df.empty:
         sym_config["strategy_started"] = False
         return sym_config
