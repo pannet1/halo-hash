@@ -155,7 +155,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         resp = broker.order_place(**args)
         print(resp)
         if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
-            details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
+            details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
             save_to_local_position_book(details)
             
     else:
@@ -187,7 +187,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         resp = broker.order_place(**args)
         print(resp)
         if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
-            details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
+            details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
             save_to_local_position_book(details)
     return sym_config
 
@@ -246,7 +246,7 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             print(resp)
             if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
-                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
+                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 save_to_local_position_book(details)
             
             sym_config["quantity"] = 0
@@ -269,7 +269,7 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             print(resp)
             if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
-                details = {resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
+                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 save_to_local_position_book(details)
             
             sym_config["quantity"] = exit_quantity
@@ -294,7 +294,7 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             print(resp)
             if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
-                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
+                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 save_to_local_position_book(details)
             
             send_msg_to_telegram(
@@ -321,7 +321,7 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             print(resp)
             if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
-                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
+                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 save_to_local_position_book(details)
             
             sym_config["quantity"] = 0
@@ -354,7 +354,7 @@ def manage_strategy(sym_config, broker, ws):
             # add the date also
             print(resp)
             if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
-                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
+                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 save_to_local_position_book(details)
             
             sym_config["quantity"] = exit_quantity
@@ -382,7 +382,7 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             print(resp)
             if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
-                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
+                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 save_to_local_position_book(details)
             send_msg_to_telegram(
                 f"re-entering / add quantity for {sym_config['Instrument_name']}"
@@ -415,9 +415,23 @@ def read_strategies(path):
     return shortlisted_strategies
 
 
+# def update_local_position_book(broker, open_positions):
+#     orders_from_position_book = broker.positions()
+#     new_details = set()
+#     for open_position in open_positions:
+#         detail = 
+#         position = open_position.split(",")
+#         ins_name = position[3]
+#         product_type = position[6]
+
+
+#         for orders in orders_from_position_book:
+
+
+
 if __name__ == "__main__":
     strategy_path = "strategies/"
-    with open("temp_position_book.csv") as f:
+    with open(local_position_book) as f:
         open_positions = f.readlines()
     open_positions = [
         (position.split(",")[2], position.split(",")[3]) for position in open_positions
