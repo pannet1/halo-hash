@@ -8,7 +8,7 @@ import yaml  # pip install pyyaml
 
 dir_path = "../../"
 roll_over_occurred_today = False
-
+local_position_book = "../../temp_position_book.csv" # TODO: change name and location
 
 def send_msg_to_telegram(message):
     with open(dir_path + "config2.yaml", "r") as f:
@@ -95,17 +95,20 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
 
 
 def is_order_completed(broker, order_id):
+    # fields are from 
+    # https://pypi.org/project/NorenRestApiPy/#md-get_orderbook
+    # https://pypi.org/project/NorenRestApiPy/#md-place_order
+
     orders = broker.orders()
     for order in orders:
         if (
-            order["order_id"] == order_id
-            and order["order_status"] == "completed" # TODO: Check the fields
+            order["norenordno"] == order_id 
+            and order["status"] == "COMPLETE"
         ):
             return True
     return False
 
 def save_to_local_position_book(content_to_save):
-    local_position_book = "temp_position_book.csv" # TODO: change name and location
     with open(
         local_position_book, "a"
     ) as f:  
@@ -137,7 +140,6 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             temp = int(int(traded_quantity / lot_size) * lot_size)
             sell_quantity = int(int(temp / 2) * 2)
         sym_config["quantity"] = sell_quantity
-        # place_order("SELL") # TODO:DONE:  @pannet1
         # add all params to sym_config, this is required to manage the placed order
         args = dict(
             side="S",
@@ -152,9 +154,8 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         )
         resp = broker.order_place(**args)
         print(resp)
-        if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
-            # store position in excel for later use --> TODO: @pannet1: Need to check on this
-            details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
+        if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+            details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
             save_to_local_position_book(details)
             
     else:
@@ -185,9 +186,8 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         )
         resp = broker.order_place(**args)
         print(resp)
-        if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
-            # store position in excel for later use --> TODO: @pannet1: Need to check on this
-            details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
+        if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+            details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
             save_to_local_position_book(details)
     return sym_config
 
@@ -230,7 +230,7 @@ def manage_strategy(sym_config, broker, ws):
         if is_time_reached(sym_config["strategy_exit_time"]) or (
             exit_condition_1 and exit_condition_2
         ):
-            # exit all quantities # TODO @pannet1: use sym_config["quantity"]  for current quantity
+            # exit all quantities
             # sym_config["quantity"] =  update quantity after placing order
             args = dict(
                 side="S",  # since exiting, B will give S
@@ -245,9 +245,8 @@ def manage_strategy(sym_config, broker, ws):
             )
             resp = broker.order_place(**args)
             print(resp)
-            if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
-                # store position in excel for later use --> TODO: @pannet1: Need to check on this
-                details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
+            if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
                 save_to_local_position_book(details)
             
             sym_config["quantity"] = 0
@@ -255,7 +254,6 @@ def manage_strategy(sym_config, broker, ws):
                 f"Exiting all quantities for {sym_config['Instrument_name']}"
             )
         if condition_1 and condition_2:
-            # Exit 50% quantity # TODO @pannet1:
             exit_quantity = abs(abs(sym_config["quantity"]) / 2)
             args = dict(
                 side="S",  # since exiting, B will give S
@@ -269,11 +267,9 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            
             print(resp)
-            if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
-                # store position in excel for later use --> TODO: @pannet1: Need to check on this
-                details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
+            if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+                details = {resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
                 save_to_local_position_book(details)
             
             sym_config["quantity"] = exit_quantity
@@ -281,7 +277,9 @@ def manage_strategy(sym_config, broker, ws):
                 f"Exiting 50% quantity for {sym_config['Instrument_name']}"
             )
         elif condition_3 and condition_4:
-            # reenter / add quantity # Check the account balance to determine, the quantity to be added # TODO @pannet1:
+            # reenter / add quantity 
+            # Check the account balance to determine, the quantity to be added 
+            # TODO @pannet1:
             args = dict(
                 side="B",  # since re-enter,
                 product="M",  #  for NRML
@@ -295,9 +293,8 @@ def manage_strategy(sym_config, broker, ws):
             )
             resp = broker.order_place(**args)
             print(resp)
-            if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
-                # store position in excel for later use --> TODO: @pannet1: Need to check on this
-                details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
+            if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
                 save_to_local_position_book(details)
             
             send_msg_to_telegram(
@@ -323,9 +320,8 @@ def manage_strategy(sym_config, broker, ws):
             )
             resp = broker.order_place(**args)
             print(resp)
-            if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
-                # store position in excel for later use --> TODO: @pannet1: Need to check on this
-                details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
+            if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
                 save_to_local_position_book(details)
             
             sym_config["quantity"] = 0
@@ -347,7 +343,6 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            # store position in excel for later use --> TODO: @pannet1: Need to check on this
             # check order status from the below gist
             # https://gist.github.com/pannet1/53773f6e4e67f74311024e1e25f92a10
             # read the position book once in the 1st run and keep overwritting with current
@@ -358,9 +353,8 @@ def manage_strategy(sym_config, broker, ws):
             # so when we aggregate we know the current position on hand. you may need to
             # add the date also
             print(resp)
-            if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
-                # store position in excel for later use --> TODO: @pannet1: Need to check on this
-                details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
+            if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B",'
                 save_to_local_position_book(details)
             
             sym_config["quantity"] = exit_quantity
@@ -387,9 +381,8 @@ def manage_strategy(sym_config, broker, ws):
             )
             resp = broker.order_place(**args)
             print(resp)
-            if resp and "order_id" in resp and is_order_completed(broker, resp["order_id"]):
-                # store position in excel for later use --> TODO: @pannet1: Need to check on this
-                details = f'{resp["order_id"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
+            if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",'
                 save_to_local_position_book(details)
             send_msg_to_telegram(
                 f"re-entering / add quantity for {sym_config['Instrument_name']}"
@@ -427,8 +420,9 @@ if __name__ == "__main__":
     with open("temp_position_book.csv") as f:
         open_positions = f.readlines()
     open_positions = [
-        (position.split(",")[0], position.split(",")[1]) for position in open_positions
+        (position.split(",")[2], position.split(",")[3]) for position in open_positions
     ]
+    # position is {resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",
     # TODO: check position book at start to validate if they are still valid or canceled/closed by eod process yesterday
     # TODO: when to clear this temp position book? can we do it at SOD daily? and not do it intermittently?
     # Clear position book and update it as per position book today
