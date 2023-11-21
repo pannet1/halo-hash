@@ -5,27 +5,37 @@ import pandas as pd  # pip install pandas
 import pendulum  # pip install pendulum
 import requests  # pip install requests
 import yaml  # pip install pyyaml
+import csv
+from omspy_brokers.finvasia import Finvasia
 
-dir_path = "../../"
+# globals are mostly imported only once and are
+# in CAPS, only exception is the custom logging
+from constants import CRED, SECDIR, logging
+
 roll_over_occurred_today = False
-local_position_book = "../../temp_position_book.csv" # TODO: change name and location
+"""
+need to place positions in a common
+place for all strategies away from git
+"""
+local_position_book = SECDIR + "positions.csv"
+
 
 def send_msg_to_telegram(message):
-    with open(dir_path + "config2.yaml", "r") as f:
+    with open(SECDIR + "config2.yaml", "r") as f:
         config = yaml.safe_load(f)["telegram"]
-        print(config)
+        logging.debug(config)
     url = f"https://api.telegram.org/bot{config['bot_api_token']}/sendMessage?chat_id={config['chat_id']}&text={message}"
-    print(requests.get(url).json())
+    logging.debug(requests.get(url).json())
 
 
-def load_config_to_list_of_dicts(csv_file_path, shortlisted_strategies):
+def load_config_to_list_of_dicts(csv_file_path):
     """
     output example:
     [
-        {'action': 'SELL', 'Instrument_name': 'INFY-EQ', 'exchange': 'NSE', 'Candle_timeframe': '5m', 'Capital_allocated_in_lac': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'INFY_EEEE', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '1'},
-        {'action': 'SELL', 'Instrument_name': 'SBIN-EQ', 'exchange': 'NSE', 'Candle_timeframe': '15m', 'Capital_allocated_in_lac': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'SNIN-EQQQQ', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '2'},
-        {'action': 'BUY', 'Instrument_name': 'INFY-EQ', 'exchange': 'NSE', 'Candle_timeframe': '5m', 'Capital_allocated_in_lac': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'INFY_EEEE', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '3'},
-        {'action': 'BUY', 'Instrument_name': 'SBIN-EQ', 'exchange': 'NSE', 'Candle_timeframe': '15m', 'Capital_allocated_in_lac': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'SNIN-EQQQQ', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '4'}
+        {'action': 'SELL', 'Instrument_name': 'INFY-EQ', 'exchange': 'NSE', 'Candle_timeframe': '5m', 'capital_in_thousand': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'INFY_EEEE', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '1'},
+        {'action': 'SELL', 'Instrument_name': 'SBIN-EQ', 'exchange': 'NSE', 'Candle_timeframe': '15m', 'capital_in_thousand': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'SNIN-EQQQQ', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '2'},
+        {'action': 'BUY', 'Instrument_name': 'INFY-EQ', 'exchange': 'NSE', 'Candle_timeframe': '5m', 'capital_in_thousand': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'INFY_EEEE', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '3'},
+        {'action': 'BUY', 'Instrument_name': 'SBIN-EQ', 'exchange': 'NSE', 'Candle_timeframe': '15m', 'capital_in_thousand': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'SNIN-EQQQQ', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '4'}
         ]
     """
     csv_data = open(csv_file_path).read()
@@ -36,11 +46,7 @@ def load_config_to_list_of_dicts(csv_file_path, shortlisted_strategies):
     for i in range(len(data_rows[0])):
         for j in range(len(data_rows)):
             list_of_dicts[i][headers[j]] = data_rows[j][i]
-    shortlisted_list_of_dicts = []
-    for d in list_of_dicts:
-        if (d["action"], d["Instrument_name"]) in shortlisted_strategies:
-            shortlisted_list_of_dicts.append(d)
-    return shortlisted_list_of_dicts
+    return list_of_dicts
 
 
 # def get_current_ltp(broker, instrument_name):
@@ -95,23 +101,19 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
 
 
 def is_order_completed(broker, order_id):
-    # fields are from 
+    # fields are from
     # https://pypi.org/project/NorenRestApiPy/#md-get_orderbook
     # https://pypi.org/project/NorenRestApiPy/#md-place_order
 
     orders = broker.orders()
     for order in orders:
-        if (
-            order["norenordno"] == order_id 
-            and order["status"] == "COMPLETE"
-        ):
+        if order["norenordno"] == order_id and order["status"] == "COMPLETE":
             return True
     return False
 
+
 def save_to_local_position_book(content_to_save):
-    with open(
-        local_position_book, "a"
-    ) as f:  
+    with open(local_position_book, "a") as f:
         f.write(content_to_save + "\n")
 
 
@@ -120,7 +122,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         1:11
     ]  # take only 10 rows excluding the first row
     risk_per_trade = int(sym_config["Risk per trade"])
-    capital_allocated = int(sym_config["Capital_allocated_in_lac"]) * 1_00_000
+    capital_allocated = int(sym_config["capital_in_thousand"]) * 1_00_000
     margin_required = int(sym_config["Margin required"])
     lot_size = int(sym_config["lot_size"])
     allowable_quantity_as_per_capital = capital_allocated / margin_required
@@ -153,11 +155,15 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             tag="halo_hash",
         )
         resp = broker.order_place(**args)
-        print(resp)
-        if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+        logging.debug(resp)
+        if (
+            resp
+            and "norenordno" in resp
+            and is_order_completed(broker, resp["norenordno"])
+        ):
             details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
             save_to_local_position_book(details)
-            
+
     else:
         lowest_of_last_10_candles = float(historical_data_df["intl"].min())
         ltp = float(ws.ltp.get(sym_config["exchange|token"]))
@@ -185,8 +191,12 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             tag="halo_hash",
         )
         resp = broker.order_place(**args)
-        print(resp)
-        if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+        logging.debug(resp)
+        if (
+            resp
+            and "norenordno" in resp
+            and is_order_completed(broker, resp["norenordno"])
+        ):
             details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
             save_to_local_position_book(details)
     return sym_config
@@ -244,11 +254,15 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            print(resp)
-            if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+            logging.debug(resp)
+            if (
+                resp
+                and "norenordno" in resp
+                and is_order_completed(broker, resp["norenordno"])
+            ):
                 details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 save_to_local_position_book(details)
-            
+
             sym_config["quantity"] = 0
             send_msg_to_telegram(
                 f"Exiting all quantities for {sym_config['Instrument_name']}"
@@ -267,18 +281,22 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            print(resp)
-            if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+            logging.debug(resp)
+            if (
+                resp
+                and "norenordno" in resp
+                and is_order_completed(broker, resp["norenordno"])
+            ):
                 details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 save_to_local_position_book(details)
-            
+
             sym_config["quantity"] = exit_quantity
             send_msg_to_telegram(
                 f"Exiting 50% quantity for {sym_config['Instrument_name']}"
             )
         elif condition_3 and condition_4:
-            # reenter / add quantity 
-            # Check the account balance to determine, the quantity to be added 
+            # reenter / add quantity
+            # Check the account balance to determine, the quantity to be added
             # TODO @pannet1:
             args = dict(
                 side="B",  # since re-enter,
@@ -292,11 +310,15 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            print(resp)
-            if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+            logging.debug(resp)
+            if (
+                resp
+                and "norenordno" in resp
+                and is_order_completed(broker, resp["norenordno"])
+            ):
                 details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 save_to_local_position_book(details)
-            
+
             send_msg_to_telegram(
                 f"re-entering / add quantity for {sym_config['Instrument_name']}"
             )
@@ -319,11 +341,15 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            print(resp)
-            if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+            logging.debug(resp)
+            if (
+                resp
+                and "norenordno" in resp
+                and is_order_completed(broker, resp["norenordno"])
+            ):
                 details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 save_to_local_position_book(details)
-            
+
             sym_config["quantity"] = 0
             send_msg_to_telegram(
                 f"Exiting all quantities for {sym_config['Instrument_name']}"
@@ -352,11 +378,15 @@ def manage_strategy(sym_config, broker, ws):
             # we keep entering all the transactions both entry and exit in this file.
             # so when we aggregate we know the current position on hand. you may need to
             # add the date also
-            print(resp)
-            if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+            logging.debug(resp)
+            if (
+                resp
+                and "norenordno" in resp
+                and is_order_completed(broker, resp["norenordno"])
+            ):
                 details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 save_to_local_position_book(details)
-            
+
             sym_config["quantity"] = exit_quantity
             send_msg_to_telegram(
                 f"Exiting 50% quantity for {sym_config['Instrument_name']}"
@@ -380,8 +410,12 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            print(resp)
-            if resp and "norenordno" in resp and is_order_completed(broker, resp["norenordno"]):
+            logging.debug(resp)
+            if (
+                resp
+                and "norenordno" in resp
+                and is_order_completed(broker, resp["norenordno"])
+            ):
                 details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 save_to_local_position_book(details)
             send_msg_to_telegram(
@@ -405,28 +439,35 @@ def execute_strategy(sym_config, broker, ws):
     manage_strategy(sym_config, broker, ws)
 
 
-def read_strategies(path):
-    shortlisted_strategies = []
-    with open(path) as f:
-        strategies = f.readlines()
+def read_strategies(config):
+    strategy_name = config["strategy"]
+    csv_data = []
+    path = f"{strategy_path}{strategy_name}/short_listed.csv"
+    with open(path, "r") as csv_file:
+        csv_reader = csv.reader(csv_file)
 
-    for line in strategies:
-        shortlisted_strategies.append(line.split(","))
-    return shortlisted_strategies
+        # Iterate through each row in the CSV file
+        for row in csv_reader:
+            dct = dict(
+                strategy=strategy_name, side=row[0], symbol=row[1], exchange=row[2]
+            )
+            # Append the row as a list to csv_data
+            dct.update(config)
+            csv_data.append(dct)
+    return csv_data
 
 
 # def update_local_position_book(broker, open_positions):
 #     orders_from_position_book = broker.positions()
 #     new_details = set()
 #     for open_position in open_positions:
-#         detail = 
+#         detail =
 #         position = open_position.split(",")
 #         ins_name = position[3]
 #         product_type = position[6]
 
 
 #         for orders in orders_from_position_book:
-
 
 
 if __name__ == "__main__":
@@ -443,35 +484,35 @@ if __name__ == "__main__":
     # @mahesh please see above todo.
     # record each transaction. load transaction at the beginning of run.
 
-    shortlisted_strategies = read_strategies(
-        strategy_path + "1_strategy/short_listed.csv"
-    )
     configuration_details = load_config_to_list_of_dicts(
-        strategy_path + "buy_sell_config.csv", shortlisted_strategies + open_positions
+        strategy_path + "buy_sell_config.csv"
     )
+    logging.debug(f"configuration_details: {configuration_details}")
 
-    from omspy_brokers.finvasia import Finvasia
+    symbols_and_config = []
+    for config in configuration_details:
+        symbols_and_config += read_strategies(config)
+        print(symbols_and_config)
 
     BROKER = Finvasia
-    dir_path = "../../"
-    with open(dir_path + "config2.yaml", "r") as f:
-        config = yaml.safe_load(f)["finvasia"]
-        print(config)
-        broker = BROKER(**config)
-        if broker.authenticate():
-            print("success")
+    broker = BROKER(**CRED)
+    if broker.authenticate():
+        print("login successful")
 
-    for sym_config in configuration_details:
+    for sym_config in symbols_and_config:
         sym_config["token"] = broker.instrument_symbol(
-            sym_config["exchange"], sym_config["Instrument_name"]
+            sym_config["exchange"], sym_config["symbol"]
         )
+        logging.debug(f"token: {sym_config['token']}")
         sym_config["exchange|token"] = (
             sym_config["exchange"] + "|" + sym_config["token"]
         )
 
     instruments_for_ltp = list(
-        (sym_config["exchange|token"] for sym_config in configuration_details)
+        (sym_config["exchange|token"] for sym_config in symbols_and_config)
     )
+    print(instruments_for_ltp)
+
     ### init only once
     ws = Wserver(broker, instruments_for_ltp)
 
@@ -482,7 +523,7 @@ if __name__ == "__main__":
     while True:
         print(ws.ltp)
         time.sleep(1)
-        for config in configuration_details:
+        for config in symbols_and_config:
             config = execute_strategy(
                 config, broker, ws
             )  # check for the ltp value and re-enter or buy/sell as per req
