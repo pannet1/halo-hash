@@ -10,32 +10,24 @@ from omspy_brokers.finvasia import Finvasia
 
 # globals are mostly imported only once and are
 # in CAPS, only exception is the custom logging
-from constants import CRED, SECDIR, logging
+from constants import CRED, STGY, SECDIR, TGRAM, logging
 
 roll_over_occurred_today = False
 """
 need to place positions in a common
 place for all strategies away from git
 """
-local_position_book = SECDIR + "positions.csv"
-
-
-def send_msg_to_telegram(message):
-    with open(SECDIR + "config2.yaml", "r") as f:
-        config = yaml.safe_load(f)["telegram"]
-        logging.debug(config)
-    url = f"https://api.telegram.org/bot{config['bot_api_token']}/sendMessage?chat_id={config['chat_id']}&text={message}"
-    logging.debug(requests.get(url).json())
+local_position_book = STGY + "positions.csv"
 
 
 def load_config_to_list_of_dicts(csv_file_path):
     """
     output example:
     [
-        {'action': 'SELL', 'Instrument_name': 'INFY-EQ', 'exchange': 'NSE', 'Candle_timeframe': '5m', 'capital_in_thousand': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'INFY_EEEE', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '1'},
-        {'action': 'SELL', 'Instrument_name': 'SBIN-EQ', 'exchange': 'NSE', 'Candle_timeframe': '15m', 'capital_in_thousand': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'SNIN-EQQQQ', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '2'},
-        {'action': 'BUY', 'Instrument_name': 'INFY-EQ', 'exchange': 'NSE', 'Candle_timeframe': '5m', 'capital_in_thousand': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'INFY_EEEE', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '3'},
-        {'action': 'BUY', 'Instrument_name': 'SBIN-EQ', 'exchange': 'NSE', 'Candle_timeframe': '15m', 'capital_in_thousand': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'SNIN-EQQQQ', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '4'}
+        {'action': 'SELL', 'symbol': 'INFY-EQ', 'exchange': 'NSE', 'Candle_timeframe': '5m', 'capital_in_thousand': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'INFY_EEEE', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '1'},
+        {'action': 'SELL', 'symbol': 'SBIN-EQ', 'exchange': 'NSE', 'Candle_timeframe': '15m', 'capital_in_thousand': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'SNIN-EQQQQ', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '2'},
+        {'action': 'BUY', 'symbol': 'INFY-EQ', 'exchange': 'NSE', 'Candle_timeframe': '5m', 'capital_in_thousand': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'INFY_EEEE', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '3'},
+        {'action': 'BUY', 'symbol': 'SBIN-EQ', 'exchange': 'NSE', 'Candle_timeframe': '15m', 'capital_in_thousand': '1', 'Risk per trade': '10000', 'Margin required': '5000', 'Rollover_symbol_name': 'SNIN-EQQQQ', 'rollover_date_time': '21-NOV-23-10:00:00', 'strategy_entry_time': '9:16:00', 'strategy_exit_time': '15:15:00', 'lot_size': '4'}
         ]
     """
     csv_data = open(csv_file_path).read()
@@ -66,7 +58,7 @@ def load_config_to_list_of_dicts(csv_file_path):
 #     current_time = pendulum.now()
 #     if not roll_over_occurred_today and current_time.day == 21 and current_time.hour == 10 and current_time.minute >= 0:
 #         for i in configuration_details:
-#             i["Instrument_name"] = i["Rollover_symbol_name"]
+#             i["symbol"] = i["Rollover_symbol_name"]
 #         strategies = exit_all_strategies(strategies)
 #         roll_over_occurred_today = True
 #     return configuration_details, strategies
@@ -264,9 +256,7 @@ def manage_strategy(sym_config, broker, ws):
                 save_to_local_position_book(details)
 
             sym_config["quantity"] = 0
-            send_msg_to_telegram(
-                f"Exiting all quantities for {sym_config['Instrument_name']}"
-            )
+            TGRAM.send_msg(f"Exiting all quantities for {sym_config['symbol']}")
         if condition_1 and condition_2:
             exit_quantity = abs(abs(sym_config["quantity"]) / 2)
             args = dict(
@@ -291,9 +281,7 @@ def manage_strategy(sym_config, broker, ws):
                 save_to_local_position_book(details)
 
             sym_config["quantity"] = exit_quantity
-            send_msg_to_telegram(
-                f"Exiting 50% quantity for {sym_config['Instrument_name']}"
-            )
+            TGRAM.send_msg(f"Exiting 50% quantity for {sym_config['symbol']}")
         elif condition_3 and condition_4:
             # reenter / add quantity
             # Check the account balance to determine, the quantity to be added
@@ -319,9 +307,7 @@ def manage_strategy(sym_config, broker, ws):
                 details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 save_to_local_position_book(details)
 
-            send_msg_to_telegram(
-                f"re-entering / add quantity for {sym_config['Instrument_name']}"
-            )
+            TGRAM.send_msg(f"re-entering / add quantity for {sym_config['symbol']}")
     else:
         exit_condition_1 = exit_latest_record["intc"] > exit_latest_record["into"]
         exit_condition_2 = exit_latest_record["into"] == exit_latest_record["intl"]
@@ -351,9 +337,7 @@ def manage_strategy(sym_config, broker, ws):
                 save_to_local_position_book(details)
 
             sym_config["quantity"] = 0
-            send_msg_to_telegram(
-                f"Exiting all quantities for {sym_config['Instrument_name']}"
-            )
+            TGRAM.send_msg(f"Exiting all quantities for {sym_config['symbol']}")
         elif condition_3 and condition_4:
             # Exit 50% quantity
             exit_quantity = abs(abs(sym_config["quantity"]) / 2)
@@ -388,9 +372,7 @@ def manage_strategy(sym_config, broker, ws):
                 save_to_local_position_book(details)
 
             sym_config["quantity"] = exit_quantity
-            send_msg_to_telegram(
-                f"Exiting 50% quantity for {sym_config['Instrument_name']}"
-            )
+            TGRAM.send_msg(f"Exiting 50% quantity for {sym_config['symbol']}")
         elif (condition_1 and condition_2) or (
             float(ws.ltp[sym_config["exchange|token"]]) >= sym_config["stop_loss"]
         ):  # TODO @pannet1: is this correct - ltp reaches stop loss
@@ -418,9 +400,7 @@ def manage_strategy(sym_config, broker, ws):
             ):
                 details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 save_to_local_position_book(details)
-            send_msg_to_telegram(
-                f"re-entering / add quantity for {sym_config['Instrument_name']}"
-            )
+            TGRAM.send_msg(f"re-entering / add quantity for {sym_config['symbol']}")
 
 
 def execute_strategy(sym_config, broker, ws):
@@ -442,7 +422,7 @@ def execute_strategy(sym_config, broker, ws):
 def read_strategies(config):
     strategy_name = config["strategy"]
     csv_data = []
-    path = f"{strategy_path}{strategy_name}/short_listed.csv"
+    path = f"{STGY}{strategy_name}/short_listed.csv"
     with open(path, "r") as csv_file:
         csv_reader = csv.reader(csv_file)
 
@@ -471,7 +451,6 @@ def read_strategies(config):
 
 
 if __name__ == "__main__":
-    strategy_path = "strategies/"
     with open(local_position_book) as f:
         open_positions = f.readlines()
     open_positions = [
@@ -484,9 +463,7 @@ if __name__ == "__main__":
     # @mahesh please see above todo.
     # record each transaction. load transaction at the beginning of run.
 
-    configuration_details = load_config_to_list_of_dicts(
-        strategy_path + "buy_sell_config.csv"
-    )
+    configuration_details = load_config_to_list_of_dicts(STGY + "buy_sell_config.csv")
     logging.debug(f"configuration_details: {configuration_details}")
 
     symbols_and_config = []
