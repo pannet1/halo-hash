@@ -9,3 +9,6 @@ FUTL = Fileutils()
 CONFIG = FUTL.get_lst_fm_yml(SECDIR + "halo-hash.yml")
 CRED = CONFIG["finvasia"]
 TGRAM = Telegram(**CONFIG["telegram"])
+
+if __name__ == "__main__":
+    TGRAM.send_msg("testing")

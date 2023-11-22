@@ -8,3 +8,4 @@ Margin required,5000
 strategy_entry_time,9:16
 strategy_exit_time,15:15
 lot_size,1
+product,C

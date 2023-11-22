@@ -118,7 +118,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         1:11
     ]  # take only 10 rows excluding the first row
     risk_per_trade = int(sym_config["Risk per trade"])
-    capital_allocated = int(sym_config["capital_in_thousand"]) * 1_00_000
+    capital_allocated = int(sym_config["capital_in_thousand"]) * 1_00_0
     margin_required = int(sym_config["Margin required"])
     lot_size = int(sym_config["lot_size"])
     allowable_quantity_as_per_capital = capital_allocated / margin_required
@@ -141,7 +141,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         # add all params to sym_config, this is required to manage the placed order
         args = dict(
             side="S",
-            product="M",  #  for NRML
+            product=sym_config["product"],  #  for NRML
             exchange=sym_config["exchange"],
             quantity=abs(sym_config["quantity"]),
             disclosed_quantity=abs(sym_config["quantity"]),
@@ -163,7 +163,9 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
 
     else:
         lowest_of_last_10_candles = float(historical_data_df["intl"].min())
+        logging.debug(f"{lowest_of_last_10_candles=}")
         ltp = float(ws.ltp.get(sym_config["exchange|token"]))
+        logging.debug(f"{ltp=}")
         stop_loss = ltp - lowest_of_last_10_candles
         sym_config["stop_loss"] = stop_loss
         allowable_quantity_as_per_risk = risk_per_trade / stop_loss
@@ -178,7 +180,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         sym_config["quantity"] = buy_quantity
         args = dict(
             side="B",
-            product="M",  #  for NRML
+            product=sym_config["product"],  #  for NRML
             exchange=sym_config["exchange"],
             quantity=abs(sym_config["quantity"]),
             disclosed_quantity=abs(sym_config["quantity"]),
@@ -202,7 +204,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
 
 
 def place_first_order_for_strategy(sym_config, broker, ws):
-    if sym_config["is_in_position_book"]: # if this is already in position book 
+    if sym_config["is_in_position_book"]:  # if this is already in position book
         return sym_config
     historical_data_df = get_historical_data(sym_config, broker, 1)
     if historical_data_df.empty:
@@ -245,7 +247,7 @@ def manage_strategy(sym_config, broker, ws):
             # sym_config["quantity"] =  update quantity after placing order
             args = dict(
                 side="S",  # since exiting, B will give S
-                product="M",  #  for NRML
+                product=sym_config["product"],  #  for NRML
                 exchange=sym_config["exchange"],
                 quantity=abs(sym_config["quantity"]),
                 disclosed_quantity=abs(sym_config["quantity"]),
@@ -272,7 +274,7 @@ def manage_strategy(sym_config, broker, ws):
             exit_quantity = abs(abs(sym_config["quantity"]) / 2)
             args = dict(
                 side="S",  # since exiting, B will give S
-                product="M",  #  for NRML
+                product=sym_config["product"],  #  for NRML
                 exchange=sym_config["exchange"],
                 quantity=exit_quantity,
                 disclosed_quantity=exit_quantity,
@@ -301,7 +303,7 @@ def manage_strategy(sym_config, broker, ws):
             # TODO @pannet1:
             args = dict(
                 side="B",  # since re-enter,
-                product="M",  #  for NRML
+                product=sym_config["product"],  #  for NRML
                 exchange=sym_config["exchange"],
                 quantity=abs(sym_config["quantity"]),
                 disclosed_quantity=abs(sym_config["quantity"]),
@@ -332,7 +334,7 @@ def manage_strategy(sym_config, broker, ws):
             # exit all quantities
             args = dict(
                 side="B",  # since exiting, S will give B
-                product="M",  #  for NRML
+                product=sym_config["product"],  #  for NRML
                 exchange=sym_config["exchange"],
                 quantity=abs(sym_config["quantity"]),
                 disclosed_quantity=abs(sym_config["quantity"]),
@@ -360,7 +362,7 @@ def manage_strategy(sym_config, broker, ws):
             exit_quantity = abs(abs(sym_config["quantity"]) / 2)
             args = dict(
                 side="B",  # since exiting, S will give B
-                product="M",  #  for NRML
+                product=sym_config["product"],  #  for NRML
                 exchange=sym_config["exchange"],
                 quantity=exit_quantity,
                 disclosed_quantity=exit_quantity,
@@ -401,7 +403,7 @@ def manage_strategy(sym_config, broker, ws):
             # for a trade.
             args = dict(
                 side="S",  # since re-enter,
-                product="M",  #  for NRML
+                product=sym_config["product"],  #  for NRML
                 exchange=sym_config["exchange"],
                 quantity=abs(sym_config["quantity"]),
                 disclosed_quantity=abs(sym_config["quantity"]),
@@ -449,23 +451,20 @@ def read_strategies(config) -> list[dict]:
 
         # Iterate through each row in the CSV file
         for row in csv_reader:
-            dct = dict(
-                strategy=strategy_name, symbol=row[0], exchange=row[1]
-            )
+            dct = dict(strategy=strategy_name, symbol=row[0], exchange=row[1])
             # Append the row as a list to csv_data
             dct.update(config)
             csv_data.append(dct)
     return csv_data
 
 
-                
 def is_available_in_position_book(open_positions, config):
     # set this to True sym_config["is_in_position_book"]
     quantity = 0
     for position in open_positions:
-        if config["symbol"] ==  position["symbol"]: # Add strategy name here 
+        if config["symbol"] == position["symbol"]:  # Add strategy name here
             dir = 1 if config["side"] == "B" else -1
-            quantity += position["quantity"]* dir
+            quantity += position["quantity"] * dir
     return True if quantity != 0 else False
 
 
@@ -505,7 +504,9 @@ if __name__ == "__main__":
         sym_config["exchange|token"] = (
             sym_config["exchange"] + "|" + sym_config["token"]
         )
-        sym_config["is_in_position_book"] = is_available_in_position_book(open_positions, sym_config)
+        sym_config["is_in_position_book"] = is_available_in_position_book(
+            open_positions, sym_config
+        )
 
     instruments_for_ltp = list(
         (sym_config["exchange|token"] for sym_config in symbols_and_config)
