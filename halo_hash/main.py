@@ -6,6 +6,7 @@ import pendulum  # pip install pendulum
 import requests  # pip install requests
 import yaml  # pip install pyyaml
 import csv
+import json
 from omspy_brokers.finvasia import Finvasia
 
 # globals are mostly imported only once and are
@@ -105,8 +106,11 @@ def is_order_completed(broker, order_id):
 
 
 def save_to_local_position_book(content_to_save):
-    with open(local_position_book, "a") as f:
-        f.write(content_to_save + "\n")
+    with open(local_position_book, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=content_to_save.keys())
+        writer.writerow(content_to_save)
+        # f.write(",".join(list(content_to_save.values())) + "\n")
+        # f.write(content_to_save + "\n")
 
 
 def place_order_with_params(sym_config, historical_data_df, broker, ws):
@@ -153,8 +157,9 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             and "norenordno" in resp
             and is_order_completed(broker, resp["norenordno"])
         ):
-            details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
-            save_to_local_position_book(details)
+            sym_config["is_in_position_book"] = True
+            sym_config["side"] = "S"
+            save_to_local_position_book(sym_config)
 
     else:
         lowest_of_last_10_candles = float(historical_data_df["intl"].min())
@@ -189,12 +194,16 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             and "norenordno" in resp
             and is_order_completed(broker, resp["norenordno"])
         ):
-            details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
-            save_to_local_position_book(details)
+            sym_config["is_in_position_book"] = True
+            sym_config["side"] = "B"
+            # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
+            save_to_local_position_book(sym_config)
     return sym_config
 
 
 def place_first_order_for_strategy(sym_config, broker, ws):
+    if sym_config["is_in_position_book"]: # if this is already in position book 
+        return sym_config
     historical_data_df = get_historical_data(sym_config, broker, 1)
     if historical_data_df.empty:
         sym_config["strategy_started"] = False
@@ -252,8 +261,10 @@ def manage_strategy(sym_config, broker, ws):
                 and "norenordno" in resp
                 and is_order_completed(broker, resp["norenordno"])
             ):
-                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
-                save_to_local_position_book(details)
+                # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
+                sym_config["is_in_position_book"] = True
+                sym_config["side"] = "S"
+                save_to_local_position_book(sym_config)
 
             sym_config["quantity"] = 0
             TGRAM.send_msg(f"Exiting all quantities for {sym_config['symbol']}")
@@ -277,8 +288,10 @@ def manage_strategy(sym_config, broker, ws):
                 and "norenordno" in resp
                 and is_order_completed(broker, resp["norenordno"])
             ):
-                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
-                save_to_local_position_book(details)
+                # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
+                sym_config["is_in_position_book"] = True
+                sym_config["side"] = "S"
+                save_to_local_position_book(sym_config)
 
             sym_config["quantity"] = exit_quantity
             TGRAM.send_msg(f"Exiting 50% quantity for {sym_config['symbol']}")
@@ -304,8 +317,10 @@ def manage_strategy(sym_config, broker, ws):
                 and "norenordno" in resp
                 and is_order_completed(broker, resp["norenordno"])
             ):
-                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
-                save_to_local_position_book(details)
+                # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
+                sym_config["is_in_position_book"] = True
+                sym_config["side"] = "B"
+                save_to_local_position_book(sym_config)
 
             TGRAM.send_msg(f"re-entering / add quantity for {sym_config['symbol']}")
     else:
@@ -333,8 +348,10 @@ def manage_strategy(sym_config, broker, ws):
                 and "norenordno" in resp
                 and is_order_completed(broker, resp["norenordno"])
             ):
-                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
-                save_to_local_position_book(details)
+                # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
+                sym_config["is_in_position_book"] = True
+                sym_config["side"] = "B"
+                save_to_local_position_book(sym_config)
 
             sym_config["quantity"] = 0
             TGRAM.send_msg(f"Exiting all quantities for {sym_config['symbol']}")
@@ -368,8 +385,10 @@ def manage_strategy(sym_config, broker, ws):
                 and "norenordno" in resp
                 and is_order_completed(broker, resp["norenordno"])
             ):
-                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
-                save_to_local_position_book(details)
+                # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
+                sym_config["is_in_position_book"] = True
+                sym_config["side"] = "B"
+                save_to_local_position_book(sym_config)
 
             sym_config["quantity"] = exit_quantity
             TGRAM.send_msg(f"Exiting 50% quantity for {sym_config['symbol']}")
@@ -398,8 +417,10 @@ def manage_strategy(sym_config, broker, ws):
                 and "norenordno" in resp
                 and is_order_completed(broker, resp["norenordno"])
             ):
-                details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
-                save_to_local_position_book(details)
+                # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
+                sym_config["is_in_position_book"] = True
+                sym_config["side"] = "S"
+                save_to_local_position_book(sym_config)
             TGRAM.send_msg(f"re-entering / add quantity for {sym_config['symbol']}")
 
 
@@ -419,7 +440,7 @@ def execute_strategy(sym_config, broker, ws):
     manage_strategy(sym_config, broker, ws)
 
 
-def read_strategies(config):
+def read_strategies(config) -> list[dict]:
     strategy_name = config["strategy"]
     csv_data = []
     path = f"{STGY}{strategy_name}/short_listed.csv"
@@ -429,7 +450,7 @@ def read_strategies(config):
         # Iterate through each row in the CSV file
         for row in csv_reader:
             dct = dict(
-                strategy=strategy_name, side=row[0], symbol=row[1], exchange=row[2]
+                strategy=strategy_name, symbol=row[0], exchange=row[1]
             )
             # Append the row as a list to csv_data
             dct.update(config)
@@ -437,25 +458,18 @@ def read_strategies(config):
     return csv_data
 
 
-# def update_local_position_book(broker, open_positions):
-#     orders_from_position_book = broker.positions()
-#     new_details = set()
-#     for open_position in open_positions:
-#         detail =
-#         position = open_position.split(",")
-#         ins_name = position[3]
-#         product_type = position[6]
-
-
-#         for orders in orders_from_position_book:
+                
+def is_available_in_position_book(open_positions, config):
+    # set this to True sym_config["is_in_position_book"]
+    quantity = 0
+    for position in open_positions:
+        if config["symbol"] ==  position["symbol"]: # Add strategy name here 
+            dir = 1 if config["side"] == "B" else -1
+            quantity += position["quantity"]* dir
+    return True if quantity != 0 else False
 
 
 if __name__ == "__main__":
-    with open(local_position_book) as f:
-        open_positions = f.readlines()
-    open_positions = [
-        (position.split(",")[2], position.split(",")[3]) for position in open_positions
-    ]
     # position is {resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",
     # TODO: check position book at start to validate if they are still valid or canceled/closed by eod process yesterday
     # TODO: when to clear this temp position book? can we do it at SOD daily? and not do it intermittently?
@@ -475,6 +489,13 @@ if __name__ == "__main__":
     broker = BROKER(**CRED)
     if broker.authenticate():
         print("login successful")
+    open_positions = []
+    with open(local_position_book, "r") as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+
+        # Iterate through each row in the CSV file
+        for row in csv_reader:
+            open_positions.append(row)
 
     for sym_config in symbols_and_config:
         sym_config["token"] = broker.instrument_symbol(
@@ -484,6 +505,7 @@ if __name__ == "__main__":
         sym_config["exchange|token"] = (
             sym_config["exchange"] + "|" + sym_config["token"]
         )
+        sym_config["is_in_position_book"] = is_available_in_position_book(open_positions, sym_config)
 
     instruments_for_ltp = list(
         (sym_config["exchange|token"] for sym_config in symbols_and_config)
