@@ -3,10 +3,7 @@ from wserver import Wserver
 from datetime import datetime, timedelta
 import pandas as pd  # pip install pandas
 import pendulum  # pip install pendulum
-import requests  # pip install requests
-import yaml  # pip install pyyaml
 import csv
-import json
 from omspy_brokers.finvasia import Finvasia
 
 # globals are mostly imported only once and are
@@ -466,6 +463,26 @@ def is_available_in_position_book(open_positions, config):
             dir = 1 if config["side"] == "B" else -1
             quantity += position["quantity"] * dir
     return True if quantity != 0 else False
+
+
+def ta_entry():
+    """
+    any of the following conditions should match
+
+    [-2] 1 Hour RSI (14) less than number 50
+    [-3] 1 Hour RSI (14) less than number 50
+    [-4] 1 Hour RSI (14) less than number 50
+    [-5] 1 Hour RSI (14) less than number 50
+    [-6] 1 Hour RSI (14) less than number 50
+    [-2] 1 Hour HA Low less than [-2] 1 Hour EMA 200
+    [-3] 1 Hour HA Low less than [-3] 1 Hour EMA 200
+    [-4] 1 Hour HA Low less than [-4] 1 Hour EMA 200
+    [-5] 1 Hour HA Low less than [-5] 1 Hour EMA 200
+    [-6] 1 Hour HA Low less than [-7] 1 Hour EMA 200
+    [-1] Hour price is above VWAP
+    [-1] Hour price is above 20 SMA
+    """
+    pass
 
 
 if __name__ == "__main__":
