@@ -1,6 +1,5 @@
 import logging
 import talib
-import ta as bta
 
 class Candle:
     """
@@ -172,7 +171,7 @@ class Candle:
         - float: The SMA value for the specified candle.
         """
         try:
-            result = talib.SMA(self.inputs, timeperiod=timeperiod)
+            result = talib.SMA(self.inputs["close"], timeperiod=timeperiod)
             self.write_col_to_csv("sma", result)
             logging.debug(f"sma[{candle_number}]: {result[candle_number]}")
             return result[candle_number]
@@ -192,7 +191,7 @@ class Candle:
         - float: The EMA value for the specified candle.
         """
         try:
-            result = talib.EMA(self.inputs, timeperiod=timeperiod)
+            result = talib.EMA(self.inputs["close"], timeperiod=timeperiod)
             self.write_col_to_csv("ema", result)
             logging.debug(f"ema[{candle_number}]: {result[candle_number]}")
             return result[candle_number]

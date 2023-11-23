@@ -75,7 +75,7 @@ def ohlc_to_ha(df):
 
 
 def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
-    yesterday = datetime.now() - timedelta(days=1)
+    yesterday = datetime.now() - timedelta(days=30)
     yesterday_time_string = yesterday.strftime("%d-%m-%Y") + " 00:00:00"
     time_obj = time.strptime(yesterday_time_string, "%d-%m-%Y %H:%M:%S")
     start_time = time.mktime(time_obj)
@@ -84,6 +84,8 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
     )
     if historical_data is not None:
         historical_data_df = pd.DataFrame(historical_data)
+        num_columns = ['intc', 'intv', 'inth', 'into', 'intl', 'intvwap']
+        historical_data_df[num_columns] = historical_data_df[num_columns].apply(pd.to_numeric, errors='coerce')
         if not is_hieken_ashi:
             return historical_data_df
         heiken_aishi_df = ohlc_to_ha(historical_data_df)
@@ -231,10 +233,10 @@ def manage_strategy(sym_config, broker, ws):
         sym_config, broker, int(sym_config["intermediate_Candle_timeframe_in_minutes"])
     )
     latest_record = historical_data_df.iloc[[0]]
-    condition_1 = latest_record["intc"] < latest_record["into"]
-    condition_2 = latest_record["into"] == latest_record["inth"]
-    condition_3 = latest_record["intc"] > latest_record["into"]
-    condition_4 = latest_record["into"] == latest_record["intl"]
+    condition_1 = latest_record["intc"].item() < latest_record["into"].item()
+    condition_2 = latest_record["into"].item() == latest_record["inth"].item()
+    condition_3 = latest_record["intc"].item() > latest_record["into"].item()
+    condition_4 = latest_record["into"].item() == latest_record["intl"].item()
     exit_historical_data_df = get_historical_data(
         sym_config, broker, int(sym_config["exit_Candle_timeframe_in_minutes"])
     )
@@ -328,11 +330,9 @@ def manage_strategy(sym_config, broker, ws):
 
             TGRAM.send_msg(f"re-entering / add quantity for {sym_config['symbol']}")
     else:
-        exit_condition_1 = exit_latest_record["intc"] > exit_latest_record["into"]
-        exit_condition_2 = exit_latest_record["into"] == exit_latest_record["intl"]
-        if is_time_reached(sym_config["strategy_exit_time"]) or (
-            exit_condition_1 and exit_condition_2
-        ):
+        exit_condition_1 = exit_latest_record["intc"].item() > exit_latest_record["into"].item()
+        exit_condition_2 = exit_latest_record["into"].item() == exit_latest_record["intl"].item()
+        if is_time_reached(sym_config["strategy_exit_time"]) or (exit_condition_1 and exit_condition_2):
             # exit all quantities
             args = dict(
                 side="B",  # since exiting, S will give B
@@ -514,7 +514,7 @@ def is_entry_signal(sym_config, broker,) -> bool:
     ha_candle_data = Candle("")
     ha_candle_data.inputs = inputs
     ema_time_period = 200
-    ema_conditions = any([ha_candle_data.low(pos) < ha_candle_data.ema(ema_time_period, pos) for pos in range(-6, -1)])
+    ema_conditions = any([ha_candle_data.low(pos) < candle_data.ema(ema_time_period, pos) for pos in range(-6, -1)])
     all_conditions = [rsi_conditions, ema_conditions, candle_data.close(-1) > candle_data.vwap(-1), candle_data.close(-1) > candle_data.sma(20, -1)]
     if any(all_conditions):
         return True
