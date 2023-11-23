@@ -84,8 +84,10 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
     )
     if historical_data is not None:
         historical_data_df = pd.DataFrame(historical_data)
-        num_columns = ['intc', 'intv', 'inth', 'into', 'intl', 'intvwap']
-        historical_data_df[num_columns] = historical_data_df[num_columns].apply(pd.to_numeric, errors='coerce')
+        num_columns = ["intc", "intv", "inth", "into", "intl", "intvwap"]
+        historical_data_df[num_columns] = historical_data_df[num_columns].apply(
+            pd.to_numeric, errors="coerce"
+        )
         if not is_hieken_ashi:
             return historical_data_df
         heiken_aishi_df = ohlc_to_ha(historical_data_df)
@@ -131,7 +133,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         sym_config["stop_loss"] = stop_loss
         allowable_quantity_as_per_risk = risk_per_trade / stop_loss
         traded_quantity = min(
-            allowable_quantity_as_per_risk, allowable_quantity_as_per_capital
+            allowable_quantity_as_per_risk / ltp, allowable_quantity_as_per_capital
         )
         if traded_quantity == 1:
             sell_quantity = 1
@@ -169,9 +171,12 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         logging.debug(f"{ltp=}")
         stop_loss = ltp - lowest_of_last_10_candles
         sym_config["stop_loss"] = stop_loss
+        # risk_per_trade = 100 / 10 ( for example) 10
+        # allowable_quantity_as_per_capital =
+        # capital 1000 / margin 1 / 50 ltp (200)
         allowable_quantity_as_per_risk = risk_per_trade / stop_loss
         traded_quantity = min(
-            allowable_quantity_as_per_risk, allowable_quantity_as_per_capital
+            allowable_quantity_as_per_risk / ltp, allowable_quantity_as_per_capital
         )
         if traded_quantity == 1:
             buy_quantity = 1
@@ -211,7 +216,7 @@ def place_first_order_for_strategy(sym_config, broker, ws):
     if historical_data_df.empty:
         sym_config["strategy_started"] = False
         return sym_config
-    
+
     if is_entry_signal(sym_config, broker):
         return place_order_with_params(sym_config, historical_data_df, broker, ws)
     return sym_config
@@ -330,9 +335,15 @@ def manage_strategy(sym_config, broker, ws):
 
             TGRAM.send_msg(f"re-entering / add quantity for {sym_config['symbol']}")
     else:
-        exit_condition_1 = exit_latest_record["intc"].item() > exit_latest_record["into"].item()
-        exit_condition_2 = exit_latest_record["into"].item() == exit_latest_record["intl"].item()
-        if is_time_reached(sym_config["strategy_exit_time"]) or (exit_condition_1 and exit_condition_2):
+        exit_condition_1 = (
+            exit_latest_record["intc"].item() > exit_latest_record["into"].item()
+        )
+        exit_condition_2 = (
+            exit_latest_record["into"].item() == exit_latest_record["intl"].item()
+        )
+        if is_time_reached(sym_config["strategy_exit_time"]) or (
+            exit_condition_1 and exit_condition_2
+        ):
             # exit all quantities
             args = dict(
                 side="B",  # since exiting, S will give B
@@ -374,15 +385,6 @@ def manage_strategy(sym_config, broker, ws):
                 tag="halo_hash",
             )
             resp = broker.order_place(**args)
-            # check order status from the below gist
-            # https://gist.github.com/pannet1/53773f6e4e67f74311024e1e25f92a10
-            # read the position book once in the 1st run and keep overwritting with current
-            # positions every 15 minutes or so. this way when the program terminates abruptly
-            # we will have a continuity
-            #
-            # we keep entering all the transactions both entry and exit in this file.
-            # so when we aggregate we know the current position on hand. you may need to
-            # add the date also
             logging.debug(resp)
             if (
                 resp
@@ -470,22 +472,12 @@ def is_available_in_position_book(open_positions, config):
     return True if quantity != 0 else False
 
 
-def is_entry_signal(sym_config, broker,) -> bool:
+def is_entry_signal(
+    sym_config,
+    broker,
+) -> bool:
     """
     any of the following conditions should match
-
-    [-2] 1 Hour RSI (14) less than number 50
-    [-3] 1 Hour RSI (14) less than number 50
-    [-4] 1 Hour RSI (14) less than number 50
-    [-5] 1 Hour RSI (14) less than number 50
-    [-6] 1 Hour RSI (14) less than number 50
-    [-2] 1 Hour HA Low less than [-2] 1 Hour EMA 200
-    [-3] 1 Hour HA Low less than [-3] 1 Hour EMA 200
-    [-4] 1 Hour HA Low less than [-4] 1 Hour EMA 200
-    [-5] 1 Hour HA Low less than [-5] 1 Hour EMA 200
-    [-6] 1 Hour HA Low less than [-6] 1 Hour EMA 200
-    [-1] Hour price is above VWAP
-    [-1] Hour price is above 20 SMA
     """
     historical_data_df = get_historical_data(
         sym_config, broker, int(sym_config["intermediate_Candle_timeframe_in_minutes"])
@@ -497,12 +489,13 @@ def is_entry_signal(sym_config, broker,) -> bool:
         "low": np.array(historical_data_df["intl"].tolist()),
         "close": np.array(historical_data_df["intc"].tolist()),
         "vwap": np.array(historical_data_df["intvwap"].tolist()),
-        
     }
     candle_data = Candle("")
     candle_data.inputs = inputs
     rsi_time_period = 14
-    rsi_conditions = any([candle_data.rsi(rsi_time_period, pos) < 50 for pos in range(-6, -1)])
+    rsi_conditions = any(
+        [candle_data.rsi(rsi_time_period, pos) < 50 for pos in range(-6, -1)]
+    )
     heiken_aishi_df = ohlc_to_ha(historical_data_df)
     inputs = {
         "time": heiken_aishi_df.index.tolist(),
@@ -514,8 +507,18 @@ def is_entry_signal(sym_config, broker,) -> bool:
     ha_candle_data = Candle("")
     ha_candle_data.inputs = inputs
     ema_time_period = 200
-    ema_conditions = any([ha_candle_data.low(pos) < candle_data.ema(ema_time_period, pos) for pos in range(-6, -1)])
-    all_conditions = [rsi_conditions, ema_conditions, candle_data.close(-1) > candle_data.vwap(-1), candle_data.close(-1) > candle_data.sma(20, -1)]
+    ema_conditions = any(
+        [
+            ha_candle_data.low(pos) < candle_data.ema(ema_time_period, pos)
+            for pos in range(-6, -1)
+        ]
+    )
+    all_conditions = [
+        rsi_conditions,
+        ema_conditions,
+        candle_data.close(-1) > candle_data.vwap(-1),
+        candle_data.close(-1) > candle_data.sma(20, -1),
+    ]
     if any(all_conditions):
         return True
     return False
@@ -541,6 +544,7 @@ if __name__ == "__main__":
     broker = BROKER(**CRED)
     if broker.authenticate():
         print("login successful")
+
     open_positions = []
     with open(local_position_book, "r") as csv_file:
         csv_reader = csv.DictReader(csv_file)
@@ -575,7 +579,4 @@ if __name__ == "__main__":
             config = execute_strategy(
                 config, broker, ws
             )  # check for the ltp value and re-enter or buy/sell as per req
-    # Add a delay or perform other operations here
-
-    # When done, close the WebSocket connection
 
