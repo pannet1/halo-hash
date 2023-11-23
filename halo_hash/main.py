@@ -5,6 +5,8 @@ import pandas as pd  # pip install pandas
 import pendulum  # pip install pendulum
 import csv
 from omspy_brokers.finvasia import Finvasia
+from candle import Candle
+import numpy as np
 
 # globals are mostly imported only once and are
 # in CAPS, only exception is the custom logging
@@ -78,7 +80,7 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
     time_obj = time.strptime(yesterday_time_string, "%d-%m-%Y %H:%M:%S")
     start_time = time.mktime(time_obj)
     historical_data: list[dict] | None = broker.historical(
-        sym_config["exchange"], sym_config["token"], start_time, None, interval
+        sym_config["exchange"], sym_config["token"], start_time, None, str(interval)
     )
     if historical_data is not None:
         historical_data_df = pd.DataFrame(historical_data)
@@ -207,7 +209,10 @@ def place_first_order_for_strategy(sym_config, broker, ws):
     if historical_data_df.empty:
         sym_config["strategy_started"] = False
         return sym_config
-    return place_order_with_params(sym_config, historical_data_df, broker, ws)
+    
+    if is_entry_signal(sym_config, broker):
+        return place_order_with_params(sym_config, historical_data_df, broker, ws)
+    return sym_config
 
 
 def is_time_reached(time_in_config):
@@ -465,7 +470,7 @@ def is_available_in_position_book(open_positions, config):
     return True if quantity != 0 else False
 
 
-def ta_entry():
+def is_entry_signal(sym_config, broker,) -> bool:
     """
     any of the following conditions should match
 
@@ -478,11 +483,42 @@ def ta_entry():
     [-3] 1 Hour HA Low less than [-3] 1 Hour EMA 200
     [-4] 1 Hour HA Low less than [-4] 1 Hour EMA 200
     [-5] 1 Hour HA Low less than [-5] 1 Hour EMA 200
-    [-6] 1 Hour HA Low less than [-7] 1 Hour EMA 200
+    [-6] 1 Hour HA Low less than [-6] 1 Hour EMA 200
     [-1] Hour price is above VWAP
     [-1] Hour price is above 20 SMA
     """
-    pass
+    historical_data_df = get_historical_data(
+        sym_config, broker, int(sym_config["intermediate_Candle_timeframe_in_minutes"])
+    )
+    inputs = {
+        "time": historical_data_df.index.tolist(),
+        "open": np.array(historical_data_df["into"].tolist()),
+        "high": np.array(historical_data_df["inth"].tolist()),
+        "low": np.array(historical_data_df["intl"].tolist()),
+        "close": np.array(historical_data_df["intc"].tolist()),
+        "vwap": np.array(historical_data_df["intvwap"].tolist()),
+        
+    }
+    candle_data = Candle("")
+    candle_data.inputs = inputs
+    rsi_time_period = 14
+    rsi_conditions = any([candle_data.rsi(rsi_time_period, pos) < 50 for pos in range(-6, -1)])
+    heiken_aishi_df = ohlc_to_ha(historical_data_df)
+    inputs = {
+        "time": heiken_aishi_df.index.tolist(),
+        "open": np.array(heiken_aishi_df["ha_open"].tolist()),
+        "high": np.array(heiken_aishi_df["ha_high"].tolist()),
+        "low": np.array(heiken_aishi_df["ha_low"].tolist()),
+        "close": np.array(heiken_aishi_df["ha_close"].tolist()),
+    }
+    ha_candle_data = Candle("")
+    ha_candle_data.inputs = inputs
+    ema_time_period = 200
+    ema_conditions = any([ha_candle_data.low(pos) < ha_candle_data.ema(ema_time_period, pos) for pos in range(-6, -1)])
+    all_conditions = [rsi_conditions, ema_conditions, candle_data.close(-1) > candle_data.vwap(-1), candle_data.close(-1) > candle_data.sma(20, -1)]
+    if any(all_conditions):
+        return True
+    return False
 
 
 if __name__ == "__main__":
@@ -530,12 +566,7 @@ if __name__ == "__main__":
     )
     print(instruments_for_ltp)
 
-    ### init only once
     ws = Wserver(broker, instruments_for_ltp)
-
-    # initialise_strategy(
-    #     configuration_details, broker
-    # )  # do the initial buy or sell and store the value in config by mutation
 
     while True:
         print(ws.ltp)

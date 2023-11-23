@@ -1,6 +1,6 @@
 import logging
 import talib
-
+import ta as bta
 
 class Candle:
     """
@@ -49,6 +49,11 @@ class Candle:
     def volume(self, candle_number=-2):
         value = self.inputs["volume"][candle_number]
         logging.debug(f"volume{candle_number}: {value}")
+        return value
+    
+    def vwap(self, candle_number=-2):
+        value = self.inputs["vwap"][candle_number]
+        logging.debug(f"vwap{candle_number}: {value}")
         return value
 
     def adx(self, timeperiod=5, candle_number=-2):
@@ -153,6 +158,26 @@ class Candle:
             self.write_col_to_csv("bbands_lower", lb)
             logging.debug(f"bbands {band}[{candle_number}]: {lb[candle_number]}")
             return lb[candle_number]
+
+    def sma(self, timeperiod=5, candle_number=-1):
+        """
+        Calculate the simple Moving Average (SMA) for a given candle.
+
+        Parameters:
+        - timeperiod (int): The time period for SMA calculation.
+        - candle_number (int): The candle number for which to calculate SMA.
+                              A negative value indicates counting from the most recent candle.
+
+        Returns:
+        - float: The SMA value for the specified candle.
+        """
+        try:
+            result = talib.SMA(self.inputs, timeperiod=timeperiod)
+            self.write_col_to_csv("sma", result)
+            logging.debug(f"sma[{candle_number}]: {result[candle_number]}")
+            return result[candle_number]
+        except Exception as e:
+            logging.error(e)
 
     def ema(self, timeperiod=5, candle_number=-1):
         """
