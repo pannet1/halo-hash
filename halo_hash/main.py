@@ -126,7 +126,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
     lot_size = int(sym_config["lot_size"])
     allowable_quantity_as_per_capital = capital_allocated / margin_required
 
-    if sym_config["action"] == "SELL":
+    if sym_config["action"] == "S":
         high_of_last_10_candles = float(historical_data_df["inth"].max())
         ltp = float(ws.ltp.get(sym_config["exchange|token"]))
         stop_loss = high_of_last_10_candles - ltp
@@ -135,7 +135,9 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         traded_quantity = min(
             allowable_quantity_as_per_risk / ltp, allowable_quantity_as_per_capital
         )
-        if traded_quantity == 1:
+        if traded_quantity == 0:
+            return sym_config
+        elif traded_quantity == 1:
             sell_quantity = 1
         else:
             temp = int(int(traded_quantity / lot_size) * lot_size)
@@ -151,9 +153,11 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             order_type="MKT",
             symbol=sym_config["symbol"],
             # price=prc, # in case of LMT order
-            tag="halo_hash",
+            tag="entry",
         )
+        TGRAM.send_msg(args)
         resp = broker.order_place(**args)
+        TGRAM.send_msg(resp)
         logging.debug(resp)
         if (
             resp
@@ -178,11 +182,14 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         traded_quantity = min(
             allowable_quantity_as_per_risk / ltp, allowable_quantity_as_per_capital
         )
-        if traded_quantity == 1:
+        if traded_quantity == 0:
+            return sym_config
+        elif traded_quantity == 1:
             buy_quantity = 1
         else:
             temp = int(int(traded_quantity / lot_size) * lot_size)
             buy_quantity = int(int(temp / 2) * 2)
+
         sym_config["quantity"] = buy_quantity
         args = dict(
             side="B",
@@ -193,9 +200,11 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             order_type="MKT",
             symbol=sym_config["symbol"],
             # price=prc, # in case of LMT order
-            tag="halo_hash",
+            tag="entry",
         )
+        TGRAM.send_msg(args)
         resp = broker.order_place(**args)
+        TGRAM.send_msg(resp)
         logging.debug(resp)
         if (
             resp
@@ -246,7 +255,7 @@ def manage_strategy(sym_config, broker, ws):
         sym_config, broker, int(sym_config["exit_Candle_timeframe_in_minutes"])
     )
     exit_latest_record = exit_historical_data_df.iloc[[0]]
-    if sym_config["action"] == "BUY":
+    if sym_config["action"] == "B":
         exit_condition_1 = exit_latest_record["intc"] < exit_latest_record["into"]
         exit_condition_2 = exit_latest_record["into"] == exit_latest_record["inth"]
         if is_time_reached(sym_config["strategy_exit_time"]) or (
@@ -263,9 +272,11 @@ def manage_strategy(sym_config, broker, ws):
                 order_type="MKT",
                 symbol=sym_config["symbol"],
                 # price=prc, # in case of LMT order
-                tag="halo_hash",
+                tag="exit_all",
             )
+            TGRAM.send_msg(args)
             resp = broker.order_place(**args)
+            TGRAM.send_msg(resp)
             logging.debug(resp)
             if (
                 resp
@@ -278,7 +289,6 @@ def manage_strategy(sym_config, broker, ws):
                 save_to_local_position_book(sym_config)
 
             sym_config["quantity"] = 0
-            TGRAM.send_msg(f"Exiting all quantities for {sym_config['symbol']}")
         if condition_1 and condition_2:
             exit_quantity = abs(abs(sym_config["quantity"]) / 2)
             args = dict(
@@ -290,9 +300,11 @@ def manage_strategy(sym_config, broker, ws):
                 order_type="MKT",
                 symbol=sym_config["symbol"],
                 # price=prc, # in case of LMT order
-                tag="halo_hash",
+                tag="exit_50_perc",
             )
+            TGRAM.send_msg(args)
             resp = broker.order_place(**args)
+            TGRAM.send_msg(resp)
             logging.debug(resp)
             if (
                 resp
@@ -305,7 +317,6 @@ def manage_strategy(sym_config, broker, ws):
                 save_to_local_position_book(sym_config)
 
             sym_config["quantity"] = exit_quantity
-            TGRAM.send_msg(f"Exiting 50% quantity for {sym_config['symbol']}")
         elif condition_3 and condition_4:
             # reenter / add quantity
             # Check the account balance to determine, the quantity to be added
@@ -319,9 +330,11 @@ def manage_strategy(sym_config, broker, ws):
                 order_type="MKT",
                 symbol=sym_config["symbol"],
                 # price=prc, # in case of LMT order
-                tag="halo_hash",
+                tag="reenter",
             )
+            TGRAM.send_msg(args)
             resp = broker.order_place(**args)
+            TGRAM.send_msg(resp)
             logging.debug(resp)
             if (
                 resp
@@ -333,7 +346,6 @@ def manage_strategy(sym_config, broker, ws):
                 sym_config["side"] = "B"
                 save_to_local_position_book(sym_config)
 
-            TGRAM.send_msg(f"re-entering / add quantity for {sym_config['symbol']}")
     else:
         exit_condition_1 = (
             exit_latest_record["intc"].item() > exit_latest_record["into"].item()
@@ -354,9 +366,11 @@ def manage_strategy(sym_config, broker, ws):
                 order_type="MKT",
                 symbol=sym_config["symbol"],
                 # price=prc, # in case of LMT order
-                tag="halo_hash",
+                tag="exit_all",
             )
+            TGRAM.send_msg(args)
             resp = broker.order_place(**args)
+            TGRAM.send_msg(resp)
             logging.debug(resp)
             if (
                 resp
@@ -382,9 +396,11 @@ def manage_strategy(sym_config, broker, ws):
                 order_type="MKT",
                 symbol=sym_config["symbol"],
                 # price=prc, # in case of LMT order
-                tag="halo_hash",
+                tag="exit_50_perc",
             )
+            TGRAM.send_msg(args)
             resp = broker.order_place(**args)
+            TGRAM.send_msg(resp)
             logging.debug(resp)
             if (
                 resp
@@ -397,7 +413,6 @@ def manage_strategy(sym_config, broker, ws):
                 save_to_local_position_book(sym_config)
 
             sym_config["quantity"] = exit_quantity
-            TGRAM.send_msg(f"Exiting 50% quantity for {sym_config['symbol']}")
         elif (condition_1 and condition_2) or (
             float(ws.ltp[sym_config["exchange|token"]]) >= sym_config["stop_loss"]
         ):  # TODO @pannet1: is this correct - ltp reaches stop loss
@@ -414,10 +429,12 @@ def manage_strategy(sym_config, broker, ws):
                 order_type="MKT",
                 symbol=sym_config["symbol"],
                 # price=prc, # in case of LMT order
-                tag="halo_hash",
+                tag="reentry",
             )
+            TGRAM.send_msg(args)
             resp = broker.order_place(**args)
             logging.debug(resp)
+            TGRAM.send_msg(resp)
             if (
                 resp
                 and "norenordno" in resp
@@ -427,7 +444,6 @@ def manage_strategy(sym_config, broker, ws):
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "S"
                 save_to_local_position_book(sym_config)
-            TGRAM.send_msg(f"re-entering / add quantity for {sym_config['symbol']}")
 
 
 def execute_strategy(sym_config, broker, ws):
