@@ -101,9 +101,9 @@ def is_order_completed(broker, order_id):
     # https://pypi.org/project/NorenRestApiPy/#md-get_orderbook
     # https://pypi.org/project/NorenRestApiPy/#md-place_order
 
-    orders = broker.orders()
+    orders = broker.orders
     for order in orders:
-        if order["norenordno"] == order_id and order["status"] == "COMPLETE":
+        if order["order_id"] == order_id and order["status"] == "COMPLETE":
             return True
     return False
 
@@ -161,8 +161,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         logging.debug(resp)
         if (
             resp
-            and "norenordno" in resp
-            and is_order_completed(broker, resp["norenordno"])
+            and is_order_completed(broker, resp)
         ):
             sym_config["is_in_position_book"] = True
             sym_config["side"] = "S"
@@ -208,8 +207,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         logging.debug(resp)
         if (
             resp
-            and "norenordno" in resp
-            and is_order_completed(broker, resp["norenordno"])
+            and is_order_completed(broker, resp)
         ):
             sym_config["is_in_position_book"] = True
             sym_config["side"] = "B"
@@ -256,8 +254,8 @@ def manage_strategy(sym_config, broker, ws):
     )
     exit_latest_record = exit_historical_data_df.iloc[[0]]
     if sym_config["action"] == "B":
-        exit_condition_1 = exit_latest_record["intc"] < exit_latest_record["into"]
-        exit_condition_2 = exit_latest_record["into"] == exit_latest_record["inth"]
+        exit_condition_1 = exit_latest_record["intc"].item() < exit_latest_record["into"].item()
+        exit_condition_2 = exit_latest_record["into"].item() == exit_latest_record["inth"].item()
         if is_time_reached(sym_config["strategy_exit_time"]) or (
             exit_condition_1 and exit_condition_2
         ):
@@ -280,8 +278,7 @@ def manage_strategy(sym_config, broker, ws):
             logging.debug(resp)
             if (
                 resp
-                and "norenordno" in resp
-                and is_order_completed(broker, resp["norenordno"])
+                and is_order_completed(broker, resp)
             ):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = True
@@ -308,8 +305,7 @@ def manage_strategy(sym_config, broker, ws):
             logging.debug(resp)
             if (
                 resp
-                and "norenordno" in resp
-                and is_order_completed(broker, resp["norenordno"])
+                and is_order_completed(broker, resp)
             ):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = True
@@ -338,8 +334,7 @@ def manage_strategy(sym_config, broker, ws):
             logging.debug(resp)
             if (
                 resp
-                and "norenordno" in resp
-                and is_order_completed(broker, resp["norenordno"])
+                and is_order_completed(broker, resp)
             ):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 sym_config["is_in_position_book"] = True
@@ -374,8 +369,7 @@ def manage_strategy(sym_config, broker, ws):
             logging.debug(resp)
             if (
                 resp
-                and "norenordno" in resp
-                and is_order_completed(broker, resp["norenordno"])
+                and is_order_completed(broker, resp)
             ):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 sym_config["is_in_position_book"] = True
@@ -404,8 +398,7 @@ def manage_strategy(sym_config, broker, ws):
             logging.debug(resp)
             if (
                 resp
-                and "norenordno" in resp
-                and is_order_completed(broker, resp["norenordno"])
+                and is_order_completed(broker, resp)
             ):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 sym_config["is_in_position_book"] = True
@@ -437,8 +430,7 @@ def manage_strategy(sym_config, broker, ws):
             TGRAM.send_msg(resp)
             if (
                 resp
-                and "norenordno" in resp
-                and is_order_completed(broker, resp["norenordno"])
+                and is_order_completed(broker, resp)
             ):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = True
@@ -483,8 +475,8 @@ def is_available_in_position_book(open_positions, config):
     quantity = 0
     for position in open_positions:
         if config["symbol"] == position["symbol"]:  # Add strategy name here
-            dir = 1 if config["side"] == "B" else -1
-            quantity += position["quantity"] * dir
+            dir = 1 if config["action"] == "B" else -1
+            quantity += int(position["quantity"]) * dir
     return True if quantity != 0 else False
 
 
@@ -563,7 +555,9 @@ if __name__ == "__main__":
 
     open_positions = []
     with open(local_position_book, "r") as csv_file:
-        csv_reader = csv.DictReader(csv_file)
+        headers_str = "strategy,symbol,exchange,action,intermediate_Candle_timeframe_in_minutes,exit_Candle_timeframe_in_minutes,capital_in_thousand,Risk per trade,Margin required,strategy_entry_time,strategy_exit_time,lot_size,product,token,exchange|token,is_in_position_book,strategy_started,stop_loss,quantity,side"
+        headers = headers_str.split(",")
+        csv_reader = csv.DictReader(csv_file, fieldnames=headers)
 
         # Iterate through each row in the CSV file
         for row in csv_reader:
