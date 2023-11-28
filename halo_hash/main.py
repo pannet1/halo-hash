@@ -465,7 +465,7 @@ def is_available_in_position_book(open_positions, config):
         if config["symbol"] == position["symbol"]:  # Add strategy name here
             dir = 1 if config["action"] == "B" else -1
             quantity += int(position["quantity"]) * dir
-    return True if quantity != 0 else False
+    return (True, quantity)  if quantity != 0 else (False, quantity)
 
 
 def is_entry_signal(
@@ -559,9 +559,11 @@ if __name__ == "__main__":
         sym_config["exchange|token"] = (
             sym_config["exchange"] + "|" + sym_config["token"]
         )
-        sym_config["is_in_position_book"] = is_available_in_position_book(
+        sym_config["is_in_position_book"], quantity = is_available_in_position_book(
             open_positions, sym_config
         )
+        if sym_config["is_in_position_book"]:
+            sym_config["quantity"] = quantity
 
     instruments_for_ltp = list(
         (sym_config["exchange|token"] for sym_config in symbols_and_config)
