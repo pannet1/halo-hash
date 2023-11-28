@@ -159,10 +159,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         resp = broker.order_place(**args)
         TGRAM.send_msg(resp)
         logging.debug(resp)
-        if (
-            resp
-            and is_order_completed(broker, resp)
-        ):
+        if resp and is_order_completed(broker, resp):
             sym_config["is_in_position_book"] = True
             sym_config["side"] = "S"
             save_to_local_position_book(sym_config)
@@ -205,10 +202,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         resp = broker.order_place(**args)
         TGRAM.send_msg(resp)
         logging.debug(resp)
-        if (
-            resp
-            and is_order_completed(broker, resp)
-        ):
+        if resp and is_order_completed(broker, resp):
             sym_config["is_in_position_book"] = True
             sym_config["side"] = "B"
             # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
@@ -254,8 +248,12 @@ def manage_strategy(sym_config, broker, ws):
     )
     exit_latest_record = exit_historical_data_df.iloc[[0]]
     if sym_config["action"] == "B":
-        exit_condition_1 = exit_latest_record["intc"].item() < exit_latest_record["into"].item()
-        exit_condition_2 = exit_latest_record["into"].item() == exit_latest_record["inth"].item()
+        exit_condition_1 = (
+            exit_latest_record["intc"].item() < exit_latest_record["into"].item()
+        )
+        exit_condition_2 = (
+            exit_latest_record["into"].item() == exit_latest_record["inth"].item()
+        )
         if is_time_reached(sym_config["strategy_exit_time"]) or (
             exit_condition_1 and exit_condition_2
         ):
@@ -276,10 +274,7 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             TGRAM.send_msg(resp)
             logging.debug(resp)
-            if (
-                resp
-                and is_order_completed(broker, resp)
-            ):
+            if resp and is_order_completed(broker, resp):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "S"
@@ -303,10 +298,7 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             TGRAM.send_msg(resp)
             logging.debug(resp)
-            if (
-                resp
-                and is_order_completed(broker, resp)
-            ):
+            if resp and is_order_completed(broker, resp):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "S"
@@ -317,6 +309,7 @@ def manage_strategy(sym_config, broker, ws):
             # reenter / add quantity
             # Check the account balance to determine, the quantity to be added
             # TODO @pannet1:
+            """
             args = dict(
                 side="B",  # since re-enter,
                 product=sym_config["product"],  #  for NRML
@@ -340,7 +333,8 @@ def manage_strategy(sym_config, broker, ws):
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "B"
                 save_to_local_position_book(sym_config)
-
+            """
+            pass
     else:
         exit_condition_1 = (
             exit_latest_record["intc"].item() > exit_latest_record["into"].item()
@@ -367,10 +361,7 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             TGRAM.send_msg(resp)
             logging.debug(resp)
-            if (
-                resp
-                and is_order_completed(broker, resp)
-            ):
+            if resp and is_order_completed(broker, resp):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "B"
@@ -396,10 +387,7 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             TGRAM.send_msg(resp)
             logging.debug(resp)
-            if (
-                resp
-                and is_order_completed(broker, resp)
-            ):
+            if resp and is_order_completed(broker, resp):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "B"
@@ -413,6 +401,7 @@ def manage_strategy(sym_config, broker, ws):
             # you have the capital for this strategy which is for every trade of this strategy.
             # you know the ltp when you ltp, so based on that we can calculate the margin required
             # for a trade.
+            """
             args = dict(
                 side="S",  # since re-enter,
                 product=sym_config["product"],  #  for NRML
@@ -422,20 +411,19 @@ def manage_strategy(sym_config, broker, ws):
                 order_type="MKT",
                 symbol=sym_config["symbol"],
                 # price=prc, # in case of LMT order
-                tag="reentry",
+                tag="reenter",
             )
             TGRAM.send_msg(args)
             resp = broker.order_place(**args)
             logging.debug(resp)
             TGRAM.send_msg(resp)
-            if (
-                resp
-                and is_order_completed(broker, resp)
-            ):
+            if resp and is_order_completed(broker, resp):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "S"
                 save_to_local_position_book(sym_config)
+            """
+            pass
 
 
 def execute_strategy(sym_config, broker, ws):
