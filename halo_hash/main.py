@@ -235,6 +235,8 @@ def is_time_reached(time_in_config):
 
 
 def manage_strategy(sym_config, broker, ws):
+    if "quantity" in sym_config and sym_config["quantity"] == 0:
+        return
     historical_data_df = get_historical_data(
         sym_config, broker, int(sym_config["intermediate_Candle_timeframe_in_minutes"])
     )
@@ -461,11 +463,16 @@ def read_strategies(config) -> list[dict]:
 def is_available_in_position_book(open_positions, config):
     # set this to True sym_config["is_in_position_book"]
     quantity = 0
+    desired_position = {}
     for position in open_positions:
         if config["symbol"] == position["symbol"]:  # Add strategy name here
             dir = 1 if config["action"] == "B" else -1
             quantity += int(position["quantity"]) * dir
-    return (True, quantity)  if quantity != 0 else (False, quantity)
+    for value in open_positions[::-1]:
+        if config["symbol"] == value["symbol"]:  # Add strategy name here
+            desired_position = value
+            break
+    return (True, quantity, desired_position)  if quantity != 0 else (False, quantity, desired_position)
 
 
 def is_entry_signal(
@@ -519,6 +526,48 @@ def is_entry_signal(
         return True
     return False
 
+def read_and_get_updated_details(broker, configuration_details):
+    symbols_and_config = []
+    for config in configuration_details:
+        symbols_and_config += read_strategies(config)
+    print(symbols_and_config)
+
+    open_positions = []
+    with open(local_position_book, "r") as csv_file:
+        headers_str = "strategy,symbol,exchange,action,intermediate_Candle_timeframe_in_minutes,exit_Candle_timeframe_in_minutes,capital_in_thousand,Risk per trade,Margin required,strategy_entry_time,strategy_exit_time,lot_size,product,token,exchange|token,is_in_position_book,strategy_started,stop_loss,quantity,side"
+        headers = headers_str.split(",")
+        csv_reader = csv.DictReader(csv_file, fieldnames=headers)
+
+        # Iterate through each row in the CSV file
+        for row in csv_reader:
+            open_positions.append(row)
+    print("=====Open Positions - Start======")
+    for pos in open_positions:
+        print(pos)
+    print("=====Open Positions - End========")
+    for i, sym_config in enumerate(symbols_and_config):
+        sym_config["token"] = broker.instrument_symbol(
+            sym_config["exchange"], sym_config["symbol"]
+        )
+        logging.debug(f"token: {sym_config['token']}")
+        sym_config["exchange|token"] = (
+            sym_config["exchange"] + "|" + sym_config["token"]
+        )
+        is_in_position_book, quantity, position = is_available_in_position_book(
+            open_positions, sym_config
+        )
+        if is_in_position_book:
+            symbols_and_config[i].update(position)
+            symbols_and_config[i]["quantity"] = quantity
+
+            
+    print("=====Updated symbols_and_config - Start======")
+    for pos in symbols_and_config:
+        print(pos)
+    print("=====Updated symbols_and_config - End========")
+    return symbols_and_config
+    
+
 
 if __name__ == "__main__":
     # position is {resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",
@@ -530,41 +579,13 @@ if __name__ == "__main__":
 
     configuration_details = load_config_to_list_of_dicts(STGY + "buy_sell_config.csv")
     logging.debug(f"configuration_details: {configuration_details}")
-
-    symbols_and_config = []
-    for config in configuration_details:
-        symbols_and_config += read_strategies(config)
-        print(symbols_and_config)
-
+    
     BROKER = Finvasia
     broker = BROKER(**CRED)
     if broker.authenticate():
         print("login successful")
-
-    open_positions = []
-    with open(local_position_book, "r") as csv_file:
-        headers_str = "strategy,symbol,exchange,action,intermediate_Candle_timeframe_in_minutes,exit_Candle_timeframe_in_minutes,capital_in_thousand,Risk per trade,Margin required,strategy_entry_time,strategy_exit_time,lot_size,product,token,exchange|token,is_in_position_book,strategy_started,stop_loss,quantity,side"
-        headers = headers_str.split(",")
-        csv_reader = csv.DictReader(csv_file, fieldnames=headers)
-
-        # Iterate through each row in the CSV file
-        for row in csv_reader:
-            open_positions.append(row)
-
-    for sym_config in symbols_and_config:
-        sym_config["token"] = broker.instrument_symbol(
-            sym_config["exchange"], sym_config["symbol"]
-        )
-        logging.debug(f"token: {sym_config['token']}")
-        sym_config["exchange|token"] = (
-            sym_config["exchange"] + "|" + sym_config["token"]
-        )
-        sym_config["is_in_position_book"], quantity = is_available_in_position_book(
-            open_positions, sym_config
-        )
-        if sym_config["is_in_position_book"]:
-            sym_config["quantity"] = quantity
-
+    symbols_and_config = read_and_get_updated_details(broker, configuration_details)
+    
     instruments_for_ltp = list(
         (sym_config["exchange|token"] for sym_config in symbols_and_config)
     )
@@ -573,10 +594,16 @@ if __name__ == "__main__":
     ws = Wserver(broker, instruments_for_ltp)
 
     while True:
+        ws.tokens = instruments_for_ltp
         print(ws.ltp)
         time.sleep(1)
         for config in symbols_and_config:
             config = execute_strategy(
                 config, broker, ws
             )  # check for the ltp value and re-enter or buy/sell as per req
-
+        symbols_and_config = read_and_get_updated_details(broker, configuration_details)
+        instruments_for_ltp = list(
+            (sym_config["exchange|token"] for sym_config in symbols_and_config)
+        )
+        print(instruments_for_ltp)
+        
