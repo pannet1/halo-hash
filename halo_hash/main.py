@@ -142,14 +142,13 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         else:
             temp = int(int(traded_quantity / lot_size) * lot_size)
             sell_quantity = int(int(temp / 2) * 2)
-        sym_config["quantity"] = sell_quantity
         # add all params to sym_config, this is required to manage the placed order
         args = dict(
             side="S",
             product=sym_config["product"],  #  for NRML
             exchange=sym_config["exchange"],
-            quantity=abs(sym_config["quantity"]),
-            disclosed_quantity=abs(sym_config["quantity"]),
+            quantity=int(sell_quantity),
+            disclosed_quantity=int(sell_quantity),
             order_type="MKT",
             symbol=sym_config["symbol"],
             # price=prc, # in case of LMT order
@@ -162,7 +161,8 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         if resp and is_order_completed(broker, resp):
             sym_config["is_in_position_book"] = True
             sym_config["side"] = "S"
-            save_to_local_position_book(sym_config)
+            sym_config["quantity"] = int(sell_quantity)
+            save_to_local_position_book(sym_config)   
 
     else:
         lowest_of_last_10_candles = float(historical_data_df["intl"].min())
@@ -186,13 +186,12 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             temp = int(int(traded_quantity / lot_size) * lot_size)
             buy_quantity = int(int(temp / 2) * 2)
 
-        sym_config["quantity"] = buy_quantity
         args = dict(
             side="B",
             product=sym_config["product"],  #  for NRML
             exchange=sym_config["exchange"],
-            quantity=abs(sym_config["quantity"]),
-            disclosed_quantity=abs(sym_config["quantity"]),
+            quantity=buy_quantity,
+            disclosed_quantity=buy_quantity,
             order_type="MKT",
             symbol=sym_config["symbol"],
             # price=prc, # in case of LMT order
@@ -206,6 +205,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             sym_config["is_in_position_book"] = True
             sym_config["side"] = "B"
             # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
+            sym_config["quantity"] = buy_quantity
             save_to_local_position_book(sym_config)
     return sym_config
 
@@ -256,17 +256,25 @@ def manage_strategy(sym_config, broker, ws):
         exit_condition_2 = (
             exit_latest_record["into"].item() == exit_latest_record["inth"].item()
         )
+        print("ACTION IS B")
+        print("Exit conditions ==> ")
+        print(f'{exit_latest_record["intc"].item()} < {exit_latest_record["into"].item()} and {exit_latest_record["into"].item()} == {exit_latest_record["inth"].item()} -> exit all')
+        print(f'{latest_record["intc"].item()} < {latest_record["into"].item()} and {latest_record["into"].item()} == {latest_record["inth"].item()} -> exit_50_perc')
+        print(f'{latest_record["intc"].item()} > {latest_record["into"].item()} and {latest_record["into"].item()} == {latest_record["intl"].item()} -> reenter')
+        print("<==")
         if is_time_reached(sym_config["strategy_exit_time"]) or (
             exit_condition_1 and exit_condition_2
         ):
+        # if 1 == 1: # dummy condition to trigger exit_50_perc
+            print("exit_all")
             # exit all quantities
             # sym_config["quantity"] =  update quantity after placing order
             args = dict(
                 side="S",  # since exiting, B will give S
                 product=sym_config["product"],  #  for NRML
                 exchange=sym_config["exchange"],
-                quantity=abs(sym_config["quantity"]),
-                disclosed_quantity=abs(sym_config["quantity"]),
+                quantity=sym_config["quantity"],
+                disclosed_quantity=sym_config["quantity"],
                 order_type="MKT",
                 symbol=sym_config["symbol"],
                 # price=prc, # in case of LMT order
@@ -282,9 +290,10 @@ def manage_strategy(sym_config, broker, ws):
                 sym_config["side"] = "S"
                 save_to_local_position_book(sym_config)
 
-            sym_config["quantity"] = 0
-        if condition_1 and condition_2:
-            exit_quantity = abs(abs(sym_config["quantity"]) / 2)
+        elif condition_1 and condition_2:
+        # elif 1 == 1: # dummy condition to trigger exit_50_perc
+            print("exit_50_perc")
+            exit_quantity = int(int(sym_config["quantity"]) / 2)
             args = dict(
                 side="S",  # since exiting, B will give S
                 product=sym_config["product"],  #  for NRML
@@ -304,13 +313,14 @@ def manage_strategy(sym_config, broker, ws):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "S"
+                sym_config["quantity"] = exit_quantity
                 save_to_local_position_book(sym_config)
 
-            sym_config["quantity"] = exit_quantity
         elif condition_3 and condition_4:
             # reenter / add quantity
             # Check the account balance to determine, the quantity to be added
             # TODO @pannet1:
+            print("Reentering")
             """
             args = dict(
                 side="B",  # since re-enter,
@@ -327,10 +337,7 @@ def manage_strategy(sym_config, broker, ws):
             resp = broker.order_place(**args)
             TGRAM.send_msg(resp)
             logging.debug(resp)
-            if (
-                resp
-                and is_order_completed(broker, resp)
-            ):
+            if resp and is_order_completed(broker, resp):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "B"
@@ -347,13 +354,14 @@ def manage_strategy(sym_config, broker, ws):
         if is_time_reached(sym_config["strategy_exit_time"]) or (
             exit_condition_1 and exit_condition_2
         ):
+            buy_quantity = int(sym_config["quantity"])
             # exit all quantities
             args = dict(
                 side="B",  # since exiting, S will give B
                 product=sym_config["product"],  #  for NRML
                 exchange=sym_config["exchange"],
-                quantity=abs(sym_config["quantity"]),
-                disclosed_quantity=abs(sym_config["quantity"]),
+                quantity=buy_quantity,
+                disclosed_quantity=buy_quantity,
                 order_type="MKT",
                 symbol=sym_config["symbol"],
                 # price=prc, # in case of LMT order
@@ -367,13 +375,13 @@ def manage_strategy(sym_config, broker, ws):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "B"
+                sym_config["quantity"] = buy_quantity
                 save_to_local_position_book(sym_config)
 
-            sym_config["quantity"] = 0
             TGRAM.send_msg(f"Exiting all quantities for {sym_config['symbol']}")
         elif condition_3 and condition_4:
             # Exit 50% quantity
-            exit_quantity = abs(abs(sym_config["quantity"]) / 2)
+            exit_quantity = int(int(sym_config["quantity"]) / 2)
             args = dict(
                 side="B",  # since exiting, S will give B
                 product=sym_config["product"],  #  for NRML
@@ -393,9 +401,10 @@ def manage_strategy(sym_config, broker, ws):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "B"
+                sym_config["quantity"] = exit_quantity
                 save_to_local_position_book(sym_config)
+                # TODO: entry price = ltp
 
-            sym_config["quantity"] = exit_quantity
         elif (condition_1 and condition_2) or (
             float(ws.ltp[sym_config["exchange|token"]]) >= sym_config["stop_loss"]
         ):  # TODO @pannet1: is this correct - ltp reaches stop loss
@@ -404,12 +413,13 @@ def manage_strategy(sym_config, broker, ws):
             # you know the ltp when you ltp, so based on that we can calculate the margin required
             # for a trade.
             """
+            exit_quantity = abs(sym_config["quantity"])
             args = dict(
                 side="S",  # since re-enter,
                 product=sym_config["product"],  #  for NRML
                 exchange=sym_config["exchange"],
-                quantity=abs(sym_config["quantity"]),
-                disclosed_quantity=abs(sym_config["quantity"]),
+                quantity=exit_quantity,
+                disclosed_quantity=exit_quantity,
                 order_type="MKT",
                 symbol=sym_config["symbol"],
                 # price=prc, # in case of LMT order
@@ -423,7 +433,9 @@ def manage_strategy(sym_config, broker, ws):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "S"
+                sym_config["quantity"] = exit_quantity
                 save_to_local_position_book(sym_config)
+                
             """
             pass
 
@@ -466,7 +478,7 @@ def is_available_in_position_book(open_positions, config):
     desired_position = {}
     for position in open_positions:
         if config["symbol"] == position["symbol"]:  # Add strategy name here
-            dir = 1 if config["action"] == "B" else -1
+            dir = 1 if position["side"] == "B" else -1
             quantity += int(position["quantity"]) * dir
     for value in open_positions[::-1]:
         if config["symbol"] == value["symbol"]:  # Add strategy name here
@@ -596,7 +608,7 @@ if __name__ == "__main__":
     while True:
         ws.tokens = instruments_for_ltp
         print(ws.ltp)
-        time.sleep(1)
+        time.sleep(30)
         for config in symbols_and_config:
             config = execute_strategy(
                 config, broker, ws
