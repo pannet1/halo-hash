@@ -162,7 +162,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             sym_config["is_in_position_book"] = True
             sym_config["side"] = "S"
             sym_config["quantity"] = int(sell_quantity)
-            save_to_local_position_book(sym_config)   
+            save_to_local_position_book(sym_config)
 
     else:
         lowest_of_last_10_candles = float(historical_data_df["intl"].min())
@@ -211,7 +211,9 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
 
 
 def place_first_order_for_strategy(sym_config, broker, ws):
-    if sym_config["is_in_position_book"]:  # if this is already in position book
+    if sym_config.get(
+        "is_in_position_book", False
+    ):  # if this is already in position book
         return sym_config
     historical_data_df = get_historical_data(sym_config, broker, 1)
     if historical_data_df.empty:
@@ -258,14 +260,20 @@ def manage_strategy(sym_config, broker, ws):
         )
         print("ACTION IS B")
         print("Exit conditions ==> ")
-        print(f'{exit_latest_record["intc"].item()} < {exit_latest_record["into"].item()} and {exit_latest_record["into"].item()} == {exit_latest_record["inth"].item()} -> exit all')
-        print(f'{latest_record["intc"].item()} < {latest_record["into"].item()} and {latest_record["into"].item()} == {latest_record["inth"].item()} -> exit_50_perc')
-        print(f'{latest_record["intc"].item()} > {latest_record["into"].item()} and {latest_record["into"].item()} == {latest_record["intl"].item()} -> reenter')
+        print(
+            f'{exit_latest_record["intc"].item()} < {exit_latest_record["into"].item()} and {exit_latest_record["into"].item()} == {exit_latest_record["inth"].item()} -> exit all'
+        )
+        print(
+            f'{latest_record["intc"].item()} < {latest_record["into"].item()} and {latest_record["into"].item()} == {latest_record["inth"].item()} -> exit_50_perc'
+        )
+        print(
+            f'{latest_record["intc"].item()} > {latest_record["into"].item()} and {latest_record["into"].item()} == {latest_record["intl"].item()} -> reenter'
+        )
         print("<==")
         if is_time_reached(sym_config["strategy_exit_time"]) or (
             exit_condition_1 and exit_condition_2
         ):
-        # if 1 == 1: # dummy condition to trigger exit_50_perc
+            # if 1 == 1: # dummy condition to trigger exit_50_perc
             print("exit_all")
             # exit all quantities
             # sym_config["quantity"] =  update quantity after placing order
@@ -291,7 +299,7 @@ def manage_strategy(sym_config, broker, ws):
                 save_to_local_position_book(sym_config)
 
         elif condition_1 and condition_2:
-        # elif 1 == 1: # dummy condition to trigger exit_50_perc
+            # elif 1 == 1: # dummy condition to trigger exit_50_perc
             print("exit_50_perc")
             exit_quantity = int(int(sym_config["quantity"]) / 2)
             args = dict(
@@ -484,7 +492,11 @@ def is_available_in_position_book(open_positions, config):
         if config["symbol"] == value["symbol"]:  # Add strategy name here
             desired_position = value
             break
-    return (True, quantity, desired_position)  if quantity != 0 else (False, quantity, desired_position)
+    return (
+        (True, quantity, desired_position)
+        if quantity != 0
+        else (False, quantity, desired_position)
+    )
 
 
 def is_entry_signal(
@@ -538,6 +550,7 @@ def is_entry_signal(
         return True
     return False
 
+
 def read_and_get_updated_details(broker, configuration_details):
     symbols_and_config = []
     for config in configuration_details:
@@ -572,13 +585,11 @@ def read_and_get_updated_details(broker, configuration_details):
             symbols_and_config[i].update(position)
             symbols_and_config[i]["quantity"] = quantity
 
-            
     print("=====Updated symbols_and_config - Start======")
     for pos in symbols_and_config:
         print(pos)
     print("=====Updated symbols_and_config - End========")
     return symbols_and_config
-    
 
 
 if __name__ == "__main__":
@@ -591,13 +602,13 @@ if __name__ == "__main__":
 
     configuration_details = load_config_to_list_of_dicts(STGY + "buy_sell_config.csv")
     logging.debug(f"configuration_details: {configuration_details}")
-    
+
     BROKER = Finvasia
     broker = BROKER(**CRED)
     if broker.authenticate():
         print("login successful")
     symbols_and_config = read_and_get_updated_details(broker, configuration_details)
-    
+
     instruments_for_ltp = list(
         (sym_config["exchange|token"] for sym_config in symbols_and_config)
     )
@@ -618,4 +629,4 @@ if __name__ == "__main__":
             (sym_config["exchange|token"] for sym_config in symbols_and_config)
         )
         print(instruments_for_ltp)
-        
+
