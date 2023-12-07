@@ -124,7 +124,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
     capital_allocated = int(sym_config["capital_in_thousand"]) * 1_00_0
     margin_required = int(sym_config["Margin required"])
     lot_size = int(sym_config["lot_size"])
-    allowable_quantity_as_per_capital = capital_allocated / margin_required
+    allowable_quantity_as_per_capital = int(capital_allocated / margin_required) # 1000 / 1
 
     if sym_config["action"] == "S":
         high_of_last_10_candles = float(historical_data_df["inth"].max())
@@ -132,9 +132,9 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         stop_loss = high_of_last_10_candles - ltp
         sym_config["stop_loss"] = stop_loss
         allowable_quantity_as_per_risk = risk_per_trade / stop_loss
-        traded_quantity = min(
+        traded_quantity = int(min(
             allowable_quantity_as_per_risk / ltp, allowable_quantity_as_per_capital
-        )
+        ))
         if traded_quantity == 0:
             return sym_config
         elif traded_quantity == 1:
@@ -163,7 +163,6 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             sym_config["side"] = "S"
             sym_config["quantity"] = int(sell_quantity)
             save_to_local_position_book(sym_config)
-
     else:
         lowest_of_last_10_candles = float(historical_data_df["intl"].min())
         logging.debug(f"{lowest_of_last_10_candles=}")
@@ -175,9 +174,9 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         # allowable_quantity_as_per_capital =
         # capital 1000 / margin 1 / 50 ltp (200)
         allowable_quantity_as_per_risk = risk_per_trade / stop_loss
-        traded_quantity = min(
+        traded_quantity = int(min(
             allowable_quantity_as_per_risk / ltp, allowable_quantity_as_per_capital
-        )
+        ))
         if traded_quantity == 0:
             return sym_config
         elif traded_quantity == 1:
