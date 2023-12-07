@@ -215,6 +215,7 @@ def place_first_order_for_strategy(sym_config, broker, ws):
         "is_in_position_book", False
     ):  # if this is already in position book
         return sym_config
+    print(f"==> Not in position book so checking for entry signal {sym_config} <==")
     historical_data_df = get_historical_data(sym_config, broker, 1)
     if historical_data_df.empty:
         sym_config["strategy_started"] = False
@@ -492,11 +493,7 @@ def is_available_in_position_book(open_positions, config):
         if config["symbol"] == value["symbol"]:  # Add strategy name here
             desired_position = value
             break
-    return (
-        (True, quantity, desired_position)
-        if quantity != 0
-        else (False, quantity, desired_position)
-    )
+    return (quantity, desired_position)
 
 
 def is_entry_signal(
@@ -578,10 +575,10 @@ def read_and_get_updated_details(broker, configuration_details):
         sym_config["exchange|token"] = (
             sym_config["exchange"] + "|" + sym_config["token"]
         )
-        is_in_position_book, quantity, position = is_available_in_position_book(
+        quantity, position = is_available_in_position_book(
             open_positions, sym_config
         )
-        if is_in_position_book:
+        if position:
             symbols_and_config[i].update(position)
             symbols_and_config[i]["quantity"] = quantity
 
