@@ -1,6 +1,6 @@
 import time
 from wserver import Wserver
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import pandas as pd  # pip install pandas
 import pendulum  # pip install pendulum
 import csv
@@ -162,6 +162,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             sym_config["is_in_position_book"] = True
             sym_config["side"] = "S"
             sym_config["quantity"] = int(sell_quantity)
+            sym_config["strategy_started"] = True
             save_to_local_position_book(sym_config)
     else:
         lowest_of_last_10_candles = float(historical_data_df["intl"].min())
@@ -205,6 +206,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             sym_config["side"] = "B"
             # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
             sym_config["quantity"] = buy_quantity
+            sym_config["strategy_started"] = True
             save_to_local_position_book(sym_config)
     return sym_config
 
@@ -217,10 +219,10 @@ def place_first_order_for_strategy(sym_config, broker, ws):
     print(f"==> Not in position book so checking for entry signal {sym_config} <==")
     historical_data_df = get_historical_data(sym_config, broker, 1)
     if historical_data_df.empty:
-        sym_config["strategy_started"] = False
         return sym_config
 
     if is_entry_signal(sym_config, broker):
+    # if 1 == 1:
         return place_order_with_params(sym_config, historical_data_df, broker, ws)
     return sym_config
 
@@ -456,7 +458,7 @@ def execute_strategy(sym_config, broker, ws):
             # start time has not reached, so wait for the next loop
             return sym_config
         # start time has reached, so proceed
-        sym_config["strategy_started"] = True
+        sym_config["strategy_started"] = False
         sym_config = place_first_order_for_strategy(sym_config, broker, ws)
         if not sym_config.get("strategy_started", None):
             return sym_config
@@ -468,15 +470,18 @@ def read_strategies(config) -> list[dict]:
     strategy_name = config["strategy"]
     csv_data = []
     path = f"{STGY}{strategy_name}/short_listed.csv"
+    today_date = date.today()
     with open(path, "r") as csv_file:
         csv_reader = csv.reader(csv_file)
 
         # Iterate through each row in the CSV file
         for row in csv_reader:
-            dct = dict(strategy=strategy_name, symbol=row[0], exchange=row[1])
-            # Append the row as a list to csv_data
-            dct.update(config)
-            csv_data.append(dct)
+            parsed_date = datetime.strptime(row[0], "%Y-%m-%d").date()
+            if parsed_date == today_date:
+                dct = dict(strategy=strategy_name, symbol=row[1], exchange=row[2])
+                # Append the row as a list to csv_data
+                dct.update(config)
+                csv_data.append(dct)
     return csv_data
 
 
@@ -566,6 +571,7 @@ def read_and_get_updated_details(broker, configuration_details):
     for pos in open_positions:
         print(pos)
     print("=====Open Positions - End========")
+    # Check for today's shortlisted symbols
     for i, sym_config in enumerate(symbols_and_config):
         sym_config["token"] = broker.instrument_symbol(
             sym_config["exchange"], sym_config["symbol"]
@@ -577,9 +583,28 @@ def read_and_get_updated_details(broker, configuration_details):
         quantity, position = is_available_in_position_book(
             open_positions, sym_config
         )
-        if position:
+        if position: # available in position book
             symbols_and_config[i].update(position)
             symbols_and_config[i]["quantity"] = quantity
+    
+    # Check for older shortlisted symbols to manage
+    for pos in open_positions:
+        if (pos["strategy"], pos["symbol"]) not in [(i["strategy"],i["symbol"]) for i in symbols_and_config]:
+            quantity, position = is_available_in_position_book(
+                open_positions, {"symbol": pos["symbol"]}
+            )
+            if position and quantity != 0: # available in position book
+                sym_config = {"symbol": pos["symbol"]}
+                sym_config["token"] = broker.instrument_symbol(
+                    sym_config["exchange"], sym_config["symbol"]
+                    )
+                logging.debug(f"token: {sym_config['token']}")
+                sym_config["exchange|token"] = (
+                    sym_config["exchange"] + "|" + sym_config["token"]
+                )
+                sym_config.update(position)
+                sym_config["quantity"] = quantity
+                symbols_and_config.append(sym_config)
 
     print("=====Updated symbols_and_config - Start======")
     for pos in symbols_and_config:
@@ -615,9 +640,9 @@ if __name__ == "__main__":
     while True:
         ws.tokens = instruments_for_ltp
         print(ws.ltp)
-        time.sleep(30)
+        time.sleep(3)
         for config in symbols_and_config:
-            config = execute_strategy(
+            execute_strategy(
                 config, broker, ws
             )  # check for the ltp value and re-enter or buy/sell as per req
         symbols_and_config = read_and_get_updated_details(broker, configuration_details)
