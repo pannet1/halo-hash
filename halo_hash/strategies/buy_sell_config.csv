@@ -2,8 +2,8 @@ strategy,1_strategy
 action,B
 intermediate_Candle_timeframe_in_minutes,60
 exit_Candle_timeframe_in_minutes,15
-capital_in_thousand,3
-Risk per trade,50
+capital_in_thousand,9
+Risk per trade,10
 Margin required,1
 strategy_entry_time,9:16
 strategy_exit_time,15:15

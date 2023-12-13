@@ -1,12 +1,13 @@
-import time
+from omspy_brokers.finvasia import Finvasia
+from calculate import entry_quantity
 from wserver import Wserver
 from datetime import datetime, timedelta, date
 import pandas as pd  # pip install pandas
-import pendulum  # pip install pendulum
-import csv
-from omspy_brokers.finvasia import Finvasia
 from candle import Candle
 import numpy as np
+import pendulum  # pip install pendulum
+import csv
+import time
 
 # globals are mostly imported only once and are
 # in CAPS, only exception is the custom logging
@@ -120,17 +121,24 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
     historical_data_df = historical_data_df.iloc[
         1:11
     ]  # take only 10 rows excluding the first row
+    """
+        moved to calc module
     risk_per_trade = int(sym_config["Risk per trade"])
     capital_allocated = int(sym_config["capital_in_thousand"]) * 1_00_0
     margin_required = int(sym_config["Margin required"])
     lot_size = int(sym_config["lot_size"])
     allowable_quantity_as_per_capital = int(capital_allocated / margin_required) # 1000 / 1
+    """
 
     if sym_config["action"] == "S":
         high_of_last_10_candles = float(historical_data_df["inth"].max())
         ltp = float(ws.ltp.get(sym_config["exchange|token"]))
         stop_loss = high_of_last_10_candles - ltp
         sym_config["stop_loss"] = stop_loss
+        sell_quantity = entry_quantity(**sym_config)
+        """
+        # moved to calc module
+
         allowable_quantity_as_per_risk = risk_per_trade / stop_loss
         traded_quantity = int(min(
             allowable_quantity_as_per_risk / ltp, allowable_quantity_as_per_capital
@@ -142,6 +150,10 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         else:
             temp = int(int(traded_quantity / lot_size) * lot_size)
             sell_quantity = int(int(temp / 2) * 2)
+        """
+        if sell_quantity == 0:
+            return sym_config
+
         # add all params to sym_config, this is required to manage the placed order
         args = dict(
             side="S",
@@ -171,9 +183,12 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         logging.debug(f"{ltp=}")
         stop_loss = ltp - lowest_of_last_10_candles
         sym_config["stop_loss"] = stop_loss
+        buy_quantity = entry_quantity(**sym_config)
         # risk_per_trade = 100 / 10 ( for example) 10
         # allowable_quantity_as_per_capital =
         # capital 1000 / margin 1 / 50 ltp (200)
+        """
+        moved to calc
         allowable_quantity_as_per_risk = risk_per_trade / stop_loss
         traded_quantity = int(min(
             allowable_quantity_as_per_risk / ltp, allowable_quantity_as_per_capital
@@ -185,7 +200,10 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         else:
             temp = int(int(traded_quantity / lot_size) * lot_size)
             buy_quantity = int(int(temp / 2) * 2)
-
+        """
+        if buy_quantity == 0:
+            return sym_config
+        buy_quantity, order_quantity(**sym_config)
         args = dict(
             side="B",
             product=sym_config["product"],  #  for NRML
