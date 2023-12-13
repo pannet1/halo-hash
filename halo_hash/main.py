@@ -135,7 +135,6 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         ltp = float(ws.ltp.get(sym_config["exchange|token"]))
         stop_loss = high_of_last_10_candles - ltp
         sym_config["stop_loss"] = stop_loss
-        sell_quantity = entry_quantity(**sym_config)
         """
         # moved to calc module
 
@@ -151,6 +150,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             temp = int(int(traded_quantity / lot_size) * lot_size)
             sell_quantity = int(int(temp / 2) * 2)
         """
+        sell_quantity = entry_quantity(**sym_config)
         if sell_quantity == 0:
             return sym_config
 
@@ -183,7 +183,6 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         logging.debug(f"{ltp=}")
         stop_loss = ltp - lowest_of_last_10_candles
         sym_config["stop_loss"] = stop_loss
-        buy_quantity = entry_quantity(**sym_config)
         # risk_per_trade = 100 / 10 ( for example) 10
         # allowable_quantity_as_per_capital =
         # capital 1000 / margin 1 / 50 ltp (200)
@@ -201,9 +200,9 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             temp = int(int(traded_quantity / lot_size) * lot_size)
             buy_quantity = int(int(temp / 2) * 2)
         """
+        buy_quantity = entry_quantity(**sym_config)
         if buy_quantity == 0:
             return sym_config
-        buy_quantity, order_quantity(**sym_config)
         args = dict(
             side="B",
             product=sym_config["product"],  #  for NRML

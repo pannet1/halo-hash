@@ -61,9 +61,7 @@ def get_positions():
     try:
         df_pos = pd.DataFrame(broker.positions)
 
-        if df_pos is not None and len(df_pos) == 0:
-            return None
-        else:
+        if df_pos is not None and not df_pos.empty:
             df_pos = df_pos[
                 [
                     "symbol",
@@ -89,29 +87,24 @@ def get_positions():
 
 def get_orders():
     try:
-        df_pos = pd.DataFrame(broker.orders)
-
-        if df_pos is not None and len(df_pos) == 0:
-            return None
-        else:
-            df_pos = df_pos[
+        df_ord = pd.DataFrame(broker.orders)
+        if df_ord is not None and not df_ord.empty:
+            df_ord = df_ord[
                 [
-                    "symbol",
-                    "exchange",
-                    "prd",
-                    "token",
-                    "ti",
-                    "quantity",
-                    "urmtom",
-                    "rpnl",
-                    "last_price",
+               "broker_timestamp",
+                "symbol",
+                "side",
+                "average_price",
+                "status",
+                "filled_quantity",
+                "rejreason",
+                "remarks"
                 ]
             ]
-            df_print = df_pos.drop(
-                ["exchange", "prd", "token", "ti"], axis=1
-            ).set_index("symbol")
+            df_print = df_ord.set_index("symbol")
             print(df_print)
-            return df_pos
+            return df_ord
+        return pd.DataFrame()
     except Exception as e:
         print(e)
         raise
@@ -119,6 +112,7 @@ def get_orders():
 
 get_holdings()
 get_positions()
+get_orders()
 # resp = broker.order_place(**args)
 # print(resp)
 
