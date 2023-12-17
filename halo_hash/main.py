@@ -613,11 +613,11 @@ def read_and_get_updated_details(broker, configuration_details):
             if position and quantity != 0: # available in position book
                 sym_config = {"symbol": pos["symbol"]}
                 sym_config["token"] = broker.instrument_symbol(
-                    sym_config["exchange"], sym_config["symbol"]
+                    pos["exchange"], pos["symbol"]
                     )
                 logging.debug(f"token: {sym_config['token']}")
                 sym_config["exchange|token"] = (
-                    sym_config["exchange"] + "|" + sym_config["token"]
+                    pos["exchange"] + "|" + pos["token"]
                 )
                 sym_config.update(position)
                 sym_config["quantity"] = quantity
