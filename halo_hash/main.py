@@ -599,6 +599,8 @@ def read_and_get_updated_details(broker, configuration_details):
         sym_config["exchange|token"] = (
             sym_config["exchange"] + "|" + sym_config["token"]
         )
+        # https://github.com/Shoonya-Dev/ShoonyaApi-py?tab=readme-ov-file#-get_quotesexchange-token
+        sym_config["lot_size"] = broker.scriptinfo(sym_config["exchange"], sym_config["token"]).get("ls")
         quantity, position = is_available_in_position_book(
             open_positions, sym_config
         )
