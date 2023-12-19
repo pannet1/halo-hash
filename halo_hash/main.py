@@ -13,6 +13,9 @@ import time
 # in CAPS, only exception is the custom logging
 from constants import CRED, STGY, SECDIR, TGRAM, logging
 
+
+headers_str = "strategy,symbol,exchange,action,intermediate_Candle_timeframe_in_minutes,exit_Candle_timeframe_in_minutes,capital_in_thousand,Risk per trade,Margin required,strategy_entry_time,strategy_exit_time,lot_size,product,token,exchange|token,is_in_position_book,strategy_started,stop_loss,quantity,side"
+        
 roll_over_occurred_today = False
 """
 need to place positions in a common
@@ -111,7 +114,7 @@ def is_order_completed(broker, order_id):
 
 def save_to_local_position_book(content_to_save):
     with open(local_position_book, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=content_to_save.keys())
+        writer = csv.DictWriter(f, fieldnames=headers_str.split(","))
         writer.writerow(content_to_save)
         # f.write(",".join(list(content_to_save.values())) + "\n")
         # f.write(content_to_save + "\n")
@@ -577,7 +580,6 @@ def read_and_get_updated_details(broker, configuration_details):
 
     open_positions = []
     with open(local_position_book, "r") as csv_file:
-        headers_str = "strategy,symbol,exchange,action,intermediate_Candle_timeframe_in_minutes,exit_Candle_timeframe_in_minutes,capital_in_thousand,Risk per trade,Margin required,strategy_entry_time,strategy_exit_time,lot_size,product,token,exchange|token,is_in_position_book,strategy_started,stop_loss,quantity,side"
         headers = headers_str.split(",")
         csv_reader = csv.DictReader(csv_file, fieldnames=headers)
 
