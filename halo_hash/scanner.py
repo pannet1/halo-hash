@@ -7,7 +7,11 @@ import pandas as pd
 import traceback
 from time import sleep
 from candle import Candle
+from datetime import datetime
 
+current_date = datetime.now()
+formatted_date = current_date.strftime('%Y-%m-%d')
+exchange = "NSE"
 
 def login_and_get_token():
     try:
@@ -102,7 +106,7 @@ def download_data(symbol):
             logging.debug(f"{filepath} modified today")
             df_price = pd.DataFrame()
             sleep(1)
-            tkn = api.instrument_symbol("NSE", symbol)
+            tkn = api.instrument_symbol(exchange, symbol)
             if tkn:
                 lastBusDay = pendulum.now()
                 fromBusDay = lastBusDay.subtract(months=24)
@@ -113,7 +117,7 @@ def download_data(symbol):
                     hour=0, minute=0, second=0, microsecond=0
                 )
                 resp = api.finvasia.get_time_price_series(
-                    exchange="NSE",
+                    exchange=exchange,
                     token=tkn,
                     starttime=fromBusDay.timestamp(),
                     endtime=lastBusDay.timestamp(),
@@ -271,10 +275,10 @@ for strategy in lst_strategies:
             if is_buy:
                 # append buy signal, symbol to csv
                 with open(obj_strgy.short_listed_file, "a") as buy_file:
-                    buy_file.write(f"BUY,{symbol}\n")
+                    buy_file.write(f"{formatted_date},{symbol},{exchange}\n")
         if obj_strgy.buy_sell.get("sell_xpress"):
             is_sell = obj_strgy.is_signal(obj_strgy.buy_sell["sell_xpress"])
             if is_sell:
                 # append sell signal, symbol to csv
                 with open(obj_strgy.short_listed_file, "a") as sell_file:
-                    sell_file.write(f"SHORT,{symbol}\n")
+                    sell_file.write(f"{formatted_date},{symbol},{exchange}\n")
