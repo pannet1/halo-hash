@@ -8,6 +8,7 @@ STGY = "strategies/"
 FUTL = Fileutils()
 CONFIG = FUTL.get_lst_fm_yml(SECDIR + "halo-hash.yml")
 CRED = CONFIG["finvasia"]
+CRED_ZERODHA = CONFIG["zerodha"]
 TGRAM = Telegram(**CONFIG["telegram"])
 
 if __name__ == "__main__":
