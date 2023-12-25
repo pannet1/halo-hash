@@ -13,8 +13,9 @@ from datetime import datetime
 import requests
 
 from io import BytesIO
+
 current_date = datetime.now()
-formatted_date = current_date.strftime('%Y-%m-%d')
+formatted_date = current_date.strftime("%Y-%m-%d")
 exchange = "NSE"
 
 
@@ -39,9 +40,16 @@ daily
 hour
 15 min
 """
-time_intervals = ["day", "15minute", "60minute", "M", "W"] # keep the unsupported formats at last
+time_intervals = [
+    "day",
+    "15minute",
+    "60minute",
+    "M",
+    "W",
+]  # keep the unsupported formats at last
 # follow pandas sampling keywords in case of missing time intervals
 allowed_time_intervals = ["day", "15minute", "60minute", "minute"]
+
 
 def remove_token():
     tokpath = SECDIR + CRED_ZERODHA["userid"] + ".txt"
@@ -50,33 +58,35 @@ def remove_token():
 
 
 def get_instrument_token(option_name, df):
-    tokens = df[df['tradingsymbol'] ==
-                option_name]['instrument_token'].to_list()
+    tokens = df[df["tradingsymbol"] == option_name]["instrument_token"].to_list()
     return tokens[0] if len(tokens) >= 1 else 0
 
 
 def get_instrument_details() -> pd.DataFrame:
-    url = 'https://api.kite.trade/instruments'
+    url = "https://api.kite.trade/instruments"
     r = requests.get(url, allow_redirects=True)
     # open('instruments.csv', 'wb').write(r.content)
     return pd.read_csv(BytesIO(r.content))
 
 
-
-
 def get_kite():
     try:
         enctoken = None
-        
+
         tokpath = SECDIR + CRED_ZERODHA["userid"] + ".txt"
         try:
-
             with open(tokpath, "r") as tf:
                 enctoken = tf.read()
                 print(f"{tokpath=} has {enctoken=}")
         except FileNotFoundError:
             enctoken = None
-        bypass = Bypass(CRED_ZERODHA["userid"], CRED_ZERODHA["password"], CRED_ZERODHA["totp"], tokpath, enctoken)
+        bypass = Bypass(
+            CRED_ZERODHA["userid"],
+            CRED_ZERODHA["password"],
+            CRED_ZERODHA["totp"],
+            tokpath,
+            enctoken,
+        )
         if not bypass.authenticate():
             raise ValueError("unable to authenticate")
     except Exception as e:
@@ -87,23 +97,46 @@ def get_kite():
 
 
 api = get_kite()
+"""
+lastBusDay = pendulum.now()
+fromBusDay = lastBusDay.subtract(months=24)
+lastBusDay = lastBusDay.replace(
+    hour=0, minute=0, second=0, microsecond=0
+)
+fromBusDay = fromBusDay.replace(
+    hour=0, minute=0, second=0, microsecond=0
+)
+instrument_details = get_instrument_details()
+tkn = get_instrument_token("INFY", instrument_details)
+        
+resp = api.history(
+    {"instrument_token":tkn,
+    "from_date":fromBusDay.format('YYYY-MM-DD HH:mm:ss'),
+    "to_date":lastBusDay.format('YYYY-MM-DD HH:mm:ss'),
+    "interval":"day",}
+)
+
+print(resp)
+import sys
+sys.exit()
+"""
 
 
 def update_inputs(symbol):
-    month_ca.inputs = resample(symbol+ "M","", False)
-    month_ca.symbol = symbol
-    week_ca.inputs = resample(symbol+"W","", False)
-    week_ca.symbol = symbol
-    day_ca.inputs = resample(symbol+ "day","", False )
+    day_ca.inputs = resample(symbol + "_day", "", False)
     day_ca.symbol = symbol
-    hour_ca.inputs = resample(symbol+ "60minute", "", False)
+    hour_ca.inputs = resample(symbol + "_60minute", "", False)
     hour_ca.symbol = symbol
-    minute_ca.inputs = resample(symbol+ "15minute", "", False)
+    minute_ca.inputs = resample(symbol + "_15minute", "", False)
     minute_ca.symbol = symbol
+    month_ca.inputs = resample(symbol + "_day_M", "", False)
+    month_ca.symbol = symbol
+    week_ca.inputs = resample(symbol + "_day_W", "", False)
+    week_ca.symbol = symbol
 
-    month_ha.inputs = ha(symbol, "M")
+    month_ha.inputs = ha(symbol, "day_M")
     month_ha.symbol = symbol
-    week_ha.inputs = ha(symbol, "W")
+    week_ha.inputs = ha(symbol, "day_W")
     week_ha.symbol = symbol
     day_ha.inputs = ha(symbol, "day")
     day_ha.symbol = symbol
@@ -164,7 +197,6 @@ def resample(symbol, str_time, force_resample=True):
 
 def download_data(symbol):
     try:
-        
         instrument_details = get_instrument_details()
         tkn = get_instrument_token(symbol, instrument_details)
         for time_interval in time_intervals:
@@ -184,28 +216,30 @@ def download_data(symbol):
                         hour=0, minute=0, second=0, microsecond=0
                     )
                     resp = api.history(
-                        instrument_token=tkn,
-                        from_date=fromBusDay.format('YYYY-MM-DD HH:mm:ss'),
-                        to_date=lastBusDay.format('YYYY-MM-DD HH:mm:ss'),
-                        interval=time_interval,
+                        {
+                            "instrument_token": tkn,
+                            "from_date": fromBusDay.format("YYYY-MM-DD HH:mm:ss"),
+                            "to_date": lastBusDay.format("YYYY-MM-DD HH:mm:ss"),
+                            "interval": "day",
+                        }
                     )
-                    '''
+                    """
                         - `instrument_token` is the instrument identifier (retrieved from the instruments()) call.
                         - `from_date` is the From date (datetime object or string in format of yyyy-mm-dd HH:MM:SS.
                         - `to_date` is the To date (datetime object or string in format of yyyy-mm-dd HH:MM:SS).
                         - `interval` is the candle interval (minute, day, 5 minute etc.).
             
-                    '''
+                    """
                     if resp is not None:
                         lst_price = []
                         for ret in resp:
                             dct = {
-                                "time": ret["time"],
-                                "open": ret["into"],
-                                "high": ret["inth"],
-                                "low": ret["intl"],
-                                "close": ret["intc"],
-                                "volume": ret["v"],
+                                "time": ret["date"],
+                                "open": ret["open"],
+                                "high": ret["high"],
+                                "low": ret["low"],
+                                "close": ret["close"],
+                                "volume": ret["volume"],
                             }
                             lst_price.append(dct)
                         # sort DataFrame in descending order
@@ -216,14 +250,13 @@ def download_data(symbol):
                     else:
                         flag = False
                 elif time_interval not in allowed_time_intervals:
-                    # resample based on time_interval 
+                    # resample based on time_interval
                     if time_interval == "M":
                         # read day and save it resampled
                         _ = resample(f"{symbol}_day", "M")
                     elif time_interval == "W":
                         # read day and save it resampled
                         _ = resample(f"{symbol}_day", "W")
-
 
             else:
                 logging.debug(f"using {filepath} already modified today")
@@ -331,7 +364,6 @@ class Strategy:
             if xpres:
                 self.buy_sell["sell_xpress"] = xpres
 
- 
 
 month_ca = Candle("1M")
 week_ca = Candle("1W")
