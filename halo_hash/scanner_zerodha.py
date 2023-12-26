@@ -1,4 +1,5 @@
 import ast
+import os
 import numpy as np
 from constants import FUTL, logging, CRED_ZERODHA, SECDIR
 from omspy_brokers.bypass import Bypass
@@ -12,7 +13,7 @@ from datetime import datetime
 import requests
 
 from io import BytesIO
-FM = pendulum.now().subtract(days=365).to_datetime_string()
+FM = pendulum.now().subtract(days=199).to_datetime_string()
 current_date = datetime.now()
 formatted_date = current_date.strftime("%Y-%m-%d")
 exchange = "NSE"
@@ -88,6 +89,7 @@ def get_kite():
             enctoken,
         )
         if not bypass.authenticate():
+            remove_token()
             raise ValueError("unable to authenticate")
     except Exception as e:
         logging.error(f"unable to create bypass object  {e}")
@@ -109,7 +111,7 @@ fromBusDay = fromBusDay.replace(
 instrument_details = get_instrument_details()
 tkn = get_instrument_token("INFY", instrument_details)
         
-resp = api.history(
+resp = broker.history(
     {"instrument_token":tkn,
     "from_date":fromBusDay.format('YYYY-MM-DD HH:mm:ss'),
     "to_date":lastBusDay.format('YYYY-MM-DD HH:mm:ss'),
@@ -140,9 +142,9 @@ def update_inputs(symbol):
     hour_ha.symbol = symbol
     day_ha.inputs = ha(symbol, "day")
     day_ha.symbol = symbol
-    week_ha.inputs = ha(symbol, "day_W")
+    week_ha.inputs = ha(symbol, "W")
     week_ha.symbol = symbol
-    month_ha.inputs = ha(symbol, "day_M")
+    month_ha.inputs = ha(symbol, "M")
     month_ha.symbol = symbol
 
 
@@ -217,7 +219,7 @@ def download_data(symbol):
         for time_interval in time_intervals:
             flag = False
             filepath = f"data/{symbol}_{time_interval}.csv"
-            if FUTL.is_file_not_2day(filepath):
+            if FUTL.is_file_not_2day(filepath) or os.path.getsize(filepath) == 0:
                 logging.debug(f"{filepath} modified today")
                 df_price = pd.DataFrame()
                 sleep(1)
@@ -392,12 +394,16 @@ for strategy in lst_strategies:
         if obj_strgy.buy_sell.get("buy_xpres"):
             is_buy = obj_strgy.is_signal(obj_strgy.buy_sell["buy_xpres"])
             if is_buy:
+                with open(f"data/{symbol}.log", "a") as log_file: 
+                    log_file.write(f'{datetime.now().time()},buy,obj_strgy.buy_sell["buy_xpres"] is {obj_strgy.buy_sell["buy_xpres"]}\n')
                 # append buy signal, symbol to csv
                 with open(obj_strgy.short_listed_file, "a") as buy_file:
                     buy_file.write(f"{formatted_date},{symbol},{exchange}\n")
         if obj_strgy.buy_sell.get("sell_xpress"):
             is_sell = obj_strgy.is_signal(obj_strgy.buy_sell["sell_xpress"])
             if is_sell:
+                with open(f"data/{symbol}.log", "a") as log_file: 
+                    log_file.write(f'{datetime.now().time()},sell,obj_strgy.buy_sell["sell_xpress"] is {obj_strgy.buy_sell["sell_xpress"]}\n')
                 # append sell signal, symbol to csv
                 with open(obj_strgy.short_listed_file, "a") as sell_file:
                     sell_file.write(f"{formatted_date},{symbol},{exchange}\n")
