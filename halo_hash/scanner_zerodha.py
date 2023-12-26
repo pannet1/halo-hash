@@ -3,7 +3,6 @@ import numpy as np
 from constants import FUTL, logging, CRED_ZERODHA, SECDIR
 from omspy_brokers.bypass import Bypass
 
-from omspy_brokers.zerodha import Zerodha
 import pendulum
 import pandas as pd
 import traceback
@@ -13,7 +12,7 @@ from datetime import datetime
 import requests
 
 from io import BytesIO
-
+FM = pendulum.now().subtract(days=365).to_datetime_string()
 current_date = datetime.now()
 formatted_date = current_date.strftime("%Y-%m-%d")
 exchange = "NSE"
@@ -58,7 +57,8 @@ def remove_token():
 
 
 def get_instrument_token(option_name, df):
-    tokens = df[df["tradingsymbol"] == option_name]["instrument_token"].to_list()
+    tokens = df[df["tradingsymbol"] ==
+                option_name]["instrument_token"].to_list()
     return tokens[0] if len(tokens) >= 1 else 0
 
 
@@ -96,7 +96,7 @@ def get_kite():
         return bypass
 
 
-api = get_kite()
+broker = get_kite()
 """
 lastBusDay = pendulum.now()
 fromBusDay = lastBusDay.subtract(months=24)
@@ -123,27 +123,41 @@ sys.exit()
 
 
 def update_inputs(symbol):
-    day_ca.inputs = resample(symbol + "_day", "", False)
-    day_ca.symbol = symbol
-    hour_ca.inputs = resample(symbol + "_60minute", "", False)
-    hour_ca.symbol = symbol
-    minute_ca.inputs = resample(symbol + "_15minute", "", False)
+    minute_ca.inputs = csv_to_vector(symbol, "15minute")
     minute_ca.symbol = symbol
-    month_ca.inputs = resample(symbol + "_day_M", "", False)
-    month_ca.symbol = symbol
-    week_ca.inputs = resample(symbol + "_day_W", "", False)
+    hour_ca.inputs = csv_to_vector(symbol, "15minute")
+    hour_ca.symbol = symbol
+    day_ca.inputs = csv_to_vector(symbol, "day")
+    day_ca.symbol = symbol
+    week_ca.inputs = csv_to_vector(symbol, "W")
     week_ca.symbol = symbol
+    month_ca.inputs = csv_to_vector(symbol, "M")
+    month_ca.symbol = symbol
 
-    month_ha.inputs = ha(symbol, "day_M")
-    month_ha.symbol = symbol
-    week_ha.inputs = ha(symbol, "day_W")
-    week_ha.symbol = symbol
-    day_ha.inputs = ha(symbol, "day")
-    day_ha.symbol = symbol
-    hour_ha.inputs = ha(symbol, "60minute")
-    hour_ha.symbol = symbol
     minute_ha.inputs = ha(symbol, "15minute")
     minute_ha.symbol = symbol
+    hour_ha.inputs = ha(symbol, "60minute")
+    hour_ha.symbol = symbol
+    day_ha.inputs = ha(symbol, "day")
+    day_ha.symbol = symbol
+    week_ha.inputs = ha(symbol, "day_W")
+    week_ha.symbol = symbol
+    month_ha.inputs = ha(symbol, "day_M")
+    month_ha.symbol = symbol
+
+
+def csv_to_vector(symbol, str_time):
+    ifile = f"data/{symbol}_{str_time}.csv"
+    df = pd.read_csv(ifile, index_col="time",
+                     parse_dates=True, dayfirst=True)
+    inputs = {
+        "time": df.index.tolist(),
+        "open": np.array(df["open"].tolist()),
+        "high": np.array(df["high"].tolist()),
+        "low": np.array(df["low"].tolist()),
+        "close": np.array(df["close"].tolist()),
+    }
+    return inputs
 
 
 def ha(symbol, str_time):
@@ -171,20 +185,20 @@ def ha(symbol, str_time):
         return inputs
 
 
-def resample(symbol, str_time, force_resample=True):
-    filepath = f"data/{symbol}.csv"
-    df = pd.read_csv(filepath, index_col="time", parse_dates=True, dayfirst=True)
-    if force_resample:
-        ohlc = {
-            "open": "first",
-            "high": "max",
-            "low": "min",
-            "close": "last",
-            "volume": "sum",
-        }
-        df = df.resample(str_time, origin="start").apply(ohlc)
-        # df = df.drop(df[df.open.isnull()].index)
-        df.to_csv(f"data/{symbol}_{str_time}.csv")
+def resample(symbol, ifile, str_time):
+    ofile = f"data/{symbol}_{str_time}.csv"
+    df = pd.read_csv(ifile, index_col="time",
+                     parse_dates=True, dayfirst=True)
+    ohlc = {
+        "open": "first",
+        "high": "max",
+        "low": "min",
+        "close": "last",
+        "volume": "sum",
+    }
+    df = df.resample(str_time, origin="start").apply(ohlc)
+    # df = df.drop(df[df.open.isnull()].index)
+    df.to_csv(ofile)
     inputs = {
         "time": df.index.tolist(),
         "open": np.array(df["open"].tolist()),
@@ -199,6 +213,7 @@ def download_data(symbol):
     try:
         instrument_details = get_instrument_details()
         tkn = get_instrument_token(symbol, instrument_details)
+        print(f"{tkn=}")
         for time_interval in time_intervals:
             flag = False
             filepath = f"data/{symbol}_{time_interval}.csv"
@@ -207,22 +222,10 @@ def download_data(symbol):
                 df_price = pd.DataFrame()
                 sleep(1)
                 if tkn and time_interval in allowed_time_intervals:
-                    lastBusDay = pendulum.now()
-                    fromBusDay = lastBusDay.subtract(months=24)
-                    lastBusDay = lastBusDay.replace(
-                        hour=0, minute=0, second=0, microsecond=0
-                    )
-                    fromBusDay = fromBusDay.replace(
-                        hour=0, minute=0, second=0, microsecond=0
-                    )
-                    resp = api.history(
-                        {
-                            "instrument_token": tkn,
-                            "from_date": fromBusDay.format("YYYY-MM-DD HH:mm:ss"),
-                            "to_date": lastBusDay.format("YYYY-MM-DD HH:mm:ss"),
-                            "interval": "day",
-                        }
-                    )
+                    to = pendulum.now().to_datetime_string()
+                    resp = broker.kite.historical_data(
+                        tkn, FM, to, time_interval)
+                    print(resp)
                     """
                         - `instrument_token` is the instrument identifier (retrieved from the instruments()) call.
                         - `from_date` is the From date (datetime object or string in format of yyyy-mm-dd HH:MM:SS.
@@ -243,7 +246,8 @@ def download_data(symbol):
                             }
                             lst_price.append(dct)
                         # sort DataFrame in descending order
-                        df_price = pd.DataFrame(lst_price).sort_index(ascending=False)
+                        df_price = pd.DataFrame(
+                            lst_price).sort_index(ascending=False)
                         if len(df_price) > 0:
                             df_price.to_csv(filepath, index=False)
                             flag = True
@@ -251,12 +255,10 @@ def download_data(symbol):
                         flag = False
                 elif time_interval not in allowed_time_intervals:
                     # resample based on time_interval
-                    if time_interval == "M":
+                    if time_interval == "M" or time_interval == "W":
                         # read day and save it resampled
-                        _ = resample(f"{symbol}_day", "M")
-                    elif time_interval == "W":
-                        # read day and save it resampled
-                        _ = resample(f"{symbol}_day", "W")
+                        ifile = f"data/{symbol}_day.csv"
+                        _ = resample(symbol, ifile, time_interval)
 
             else:
                 logging.debug(f"using {filepath} already modified today")
@@ -295,7 +297,8 @@ class Strategy:
             if valid_names:
                 return True
             else:
-                logging.error(f"Invalid names in expression: {expression.strip()}")
+                logging.error(
+                    f"Invalid names in expression: {expression.strip()}")
                 return False
         except SyntaxError as e:
             logging.error(
