@@ -381,7 +381,7 @@ def manage_strategy(sym_config, broker, ws):
         exit_condition_2 = (
             exit_latest_record["into"].item() == exit_latest_record["intl"].item()
         )
-        if is_time_reached(sym_config["strategy_exit_time"]) or (
+        if (
             exit_condition_1 and exit_condition_2
         ):
             buy_quantity = int(sym_config["quantity"])
