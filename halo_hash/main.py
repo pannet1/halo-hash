@@ -15,7 +15,7 @@ from constants import CRED, STGY, SECDIR, TGRAM, logging
 
 
 headers_str = "strategy,symbol,exchange,action,intermediate_Candle_timeframe_in_minutes,exit_Candle_timeframe_in_minutes,capital_in_thousand,Risk per trade,Margin required,strategy_entry_time,strategy_exit_time,lot_size,product,token,exchange|token,is_in_position_book,strategy_started,stop_loss,quantity,side"
-        
+
 roll_over_occurred_today = False
 """
 need to place positions in a common
@@ -84,7 +84,8 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
     time_obj = time.strptime(yesterday_time_string, "%d-%m-%Y %H:%M:%S")
     start_time = time.mktime(time_obj)
     historical_data: list[dict] | None = broker.historical(
-        sym_config["exchange"], sym_config["token"], start_time, None, str(interval)
+        sym_config["exchange"], sym_config["token"], start_time, None, str(
+            interval)
     )
     if historical_data is not None:
         historical_data_df = pd.DataFrame(historical_data)
@@ -160,7 +161,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         # add all params to sym_config, this is required to manage the placed order
         args = dict(
             side="S",
-            product=sym_config["product"],  #  for NRML
+            product=sym_config["product"],  # for NRML
             exchange=sym_config["exchange"],
             quantity=int(sell_quantity),
             disclosed_quantity=int(sell_quantity),
@@ -171,7 +172,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         )
         TGRAM.send_msg(args)
         resp = broker.order_place(**args)
-        TGRAM.send_msg(resp)
+        print(resp)
         logging.debug(resp)
         if resp and is_order_completed(broker, resp):
             sym_config["is_in_position_book"] = True
@@ -179,6 +180,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             sym_config["quantity"] = int(sell_quantity)
             sym_config["strategy_started"] = True
             save_to_local_position_book(sym_config)
+            TGRAM.send_msg(resp)
     else:
         lowest_of_last_10_candles = float(historical_data_df["intl"].min())
         logging.debug(f"{lowest_of_last_10_candles=}")
@@ -208,7 +210,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             return sym_config
         args = dict(
             side="B",
-            product=sym_config["product"],  #  for NRML
+            product=sym_config["product"],  # for NRML
             exchange=sym_config["exchange"],
             quantity=buy_quantity,
             disclosed_quantity=buy_quantity,
@@ -219,7 +221,6 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         )
         TGRAM.send_msg(args)
         resp = broker.order_place(**args)
-        TGRAM.send_msg(resp)
         logging.debug(resp)
         if resp and is_order_completed(broker, resp):
             sym_config["is_in_position_book"] = True
@@ -228,6 +229,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             sym_config["quantity"] = buy_quantity
             sym_config["strategy_started"] = True
             save_to_local_position_book(sym_config)
+            TGRAM.send_msg(resp)
     return sym_config
 
 
@@ -236,13 +238,14 @@ def place_first_order_for_strategy(sym_config, broker, ws):
         "is_in_position_book", False
     ):  # if this is already in position book
         return sym_config
-    print(f"==> Not in position book so checking for entry signal {sym_config} <==")
+    print(
+        f"==> Not in position book so checking for entry signal {sym_config} <==")
     historical_data_df = get_historical_data(sym_config, broker, 1)
     if historical_data_df.empty:
         return sym_config
 
     if is_entry_signal(sym_config, broker):
-    # if 1 == 1:
+        # if 1 == 1:
         return place_order_with_params(sym_config, historical_data_df, broker, ws)
     return sym_config
 
@@ -262,7 +265,8 @@ def manage_strategy(sym_config, broker, ws):
     if "quantity" in sym_config and sym_config["quantity"] == 0:
         return
     historical_data_df = get_historical_data(
-        sym_config, broker, int(sym_config["intermediate_Candle_timeframe_in_minutes"])
+        sym_config, broker, int(
+            sym_config["intermediate_Candle_timeframe_in_minutes"])
     )
     latest_record = historical_data_df.iloc[[0]]
     condition_1 = latest_record["intc"].item() < latest_record["into"].item()
@@ -275,10 +279,12 @@ def manage_strategy(sym_config, broker, ws):
     exit_latest_record = exit_historical_data_df.iloc[[0]]
     if sym_config["action"] == "B":
         exit_condition_1 = (
-            exit_latest_record["intc"].item() < exit_latest_record["into"].item()
+            exit_latest_record["intc"].item(
+            ) < exit_latest_record["into"].item()
         )
         exit_condition_2 = (
-            exit_latest_record["into"].item() == exit_latest_record["inth"].item()
+            exit_latest_record["into"].item(
+            ) == exit_latest_record["inth"].item()
         )
         print("ACTION IS B")
         print("Exit conditions ==> ")
@@ -301,7 +307,7 @@ def manage_strategy(sym_config, broker, ws):
             # sym_config["quantity"] =  update quantity after placing order
             args = dict(
                 side="S",  # since exiting, B will give S
-                product=sym_config["product"],  #  for NRML
+                product=sym_config["product"],  # for NRML
                 exchange=sym_config["exchange"],
                 quantity=sym_config["quantity"],
                 disclosed_quantity=sym_config["quantity"],
@@ -326,7 +332,7 @@ def manage_strategy(sym_config, broker, ws):
             exit_quantity = int(int(sym_config["quantity"]) / 2)
             args = dict(
                 side="S",  # since exiting, B will give S
-                product=sym_config["product"],  #  for NRML
+                product=sym_config["product"],  # for NRML
                 exchange=sym_config["exchange"],
                 quantity=exit_quantity,
                 disclosed_quantity=exit_quantity,
@@ -376,10 +382,12 @@ def manage_strategy(sym_config, broker, ws):
             pass
     else:
         exit_condition_1 = (
-            exit_latest_record["intc"].item() > exit_latest_record["into"].item()
+            exit_latest_record["intc"].item(
+            ) > exit_latest_record["into"].item()
         )
         exit_condition_2 = (
-            exit_latest_record["into"].item() == exit_latest_record["intl"].item()
+            exit_latest_record["into"].item(
+            ) == exit_latest_record["intl"].item()
         )
         if is_time_reached(sym_config["strategy_exit_time"]) or (
             exit_condition_1 and exit_condition_2
@@ -388,7 +396,7 @@ def manage_strategy(sym_config, broker, ws):
             # exit all quantities
             args = dict(
                 side="B",  # since exiting, S will give B
-                product=sym_config["product"],  #  for NRML
+                product=sym_config["product"],  # for NRML
                 exchange=sym_config["exchange"],
                 quantity=buy_quantity,
                 disclosed_quantity=buy_quantity,
@@ -408,13 +416,14 @@ def manage_strategy(sym_config, broker, ws):
                 sym_config["quantity"] = buy_quantity
                 save_to_local_position_book(sym_config)
 
-            TGRAM.send_msg(f"Exiting all quantities for {sym_config['symbol']}")
+            TGRAM.send_msg(
+                f"Exiting all quantities for {sym_config['symbol']}")
         elif condition_3 and condition_4:
             # Exit 50% quantity
             exit_quantity = int(int(sym_config["quantity"]) / 2)
             args = dict(
                 side="B",  # since exiting, S will give B
-                product=sym_config["product"],  #  for NRML
+                product=sym_config["product"],  # for NRML
                 exchange=sym_config["exchange"],
                 quantity=exit_quantity,
                 disclosed_quantity=exit_quantity,
@@ -436,7 +445,8 @@ def manage_strategy(sym_config, broker, ws):
                 # TODO: entry price = ltp
 
         elif (condition_1 and condition_2) or (
-            float(ws.ltp[sym_config["exchange|token"]]) >= sym_config["stop_loss"]
+            float(ws.ltp[sym_config["exchange|token"]]
+                  ) >= sym_config["stop_loss"]
         ):  # TODO @pannet1: is this correct - ltp reaches stop loss
             # reenter / add quantity # Check the account balance to determine, the quantity to be added
             # you have the capital for this strategy which is for every trade of this strategy.
@@ -465,7 +475,7 @@ def manage_strategy(sym_config, broker, ws):
                 sym_config["side"] = "S"
                 sym_config["quantity"] = exit_quantity
                 save_to_local_position_book(sym_config)
-                
+
             """
             pass
 
@@ -498,7 +508,8 @@ def read_strategies(config) -> list[dict]:
         for row in csv_reader:
             parsed_date = datetime.strptime(row[0], "%Y-%m-%d").date()
             if parsed_date == today_date:
-                dct = dict(strategy=strategy_name, symbol=row[1], exchange=row[2])
+                dct = dict(strategy=strategy_name,
+                           symbol=row[1], exchange=row[2])
                 # Append the row as a list to csv_data
                 dct.update(config)
                 csv_data.append(dct)
@@ -528,7 +539,8 @@ def is_entry_signal(
     any of the following conditions should match
     """
     historical_data_df = get_historical_data(
-        sym_config, broker, int(sym_config["intermediate_Candle_timeframe_in_minutes"])
+        sym_config, broker, int(
+            sym_config["intermediate_Candle_timeframe_in_minutes"])
     )
     inputs = {
         "time": historical_data_df.index.tolist(),
@@ -600,25 +612,26 @@ def read_and_get_updated_details(broker, configuration_details):
             sym_config["exchange"] + "|" + sym_config["token"]
         )
         # https://github.com/Shoonya-Dev/ShoonyaApi-py?tab=readme-ov-file#-get_quotesexchange-token
-        sym_config["lot_size"] = broker.scriptinfo(sym_config["exchange"], sym_config["token"]).get("ls")
+        sym_config["lot_size"] = broker.scriptinfo(
+            sym_config["exchange"], sym_config["token"]).get("ls")
         quantity, position = is_available_in_position_book(
             open_positions, sym_config
         )
-        if position: # available in position book
+        if position:  # available in position book
             symbols_and_config[i].update(position)
             symbols_and_config[i]["quantity"] = quantity
-    
+
     # Check for older shortlisted symbols to manage
     for pos in open_positions:
-        if (pos["strategy"], pos["symbol"]) not in [(i["strategy"],i["symbol"]) for i in symbols_and_config]:
+        if (pos["strategy"], pos["symbol"]) not in [(i["strategy"], i["symbol"]) for i in symbols_and_config]:
             quantity, position = is_available_in_position_book(
                 open_positions, {"symbol": pos["symbol"]}
             )
-            if position and quantity != 0: # available in position book
+            if position and quantity != 0:  # available in position book
                 sym_config = {"symbol": pos["symbol"]}
                 sym_config["token"] = broker.instrument_symbol(
                     pos["exchange"], pos["symbol"]
-                    )
+                )
                 logging.debug(f"token: {sym_config['token']}")
                 sym_config["exchange|token"] = (
                     pos["exchange"] + "|" + pos["token"]
@@ -642,14 +655,16 @@ if __name__ == "__main__":
     # @mahesh please see above todo.
     # record each transaction. load transaction at the beginning of run.
 
-    configuration_details = load_config_to_list_of_dicts(STGY + "buy_sell_config.csv")
+    configuration_details = load_config_to_list_of_dicts(
+        STGY + "buy_sell_config.csv")
     logging.debug(f"configuration_details: {configuration_details}")
 
     BROKER = Finvasia
     broker = BROKER(**CRED)
     if broker.authenticate():
         print("login successful")
-    symbols_and_config = read_and_get_updated_details(broker, configuration_details)
+    symbols_and_config = read_and_get_updated_details(
+        broker, configuration_details)
 
     instruments_for_ltp = list(
         (sym_config["exchange|token"] for sym_config in symbols_and_config)
@@ -666,7 +681,8 @@ if __name__ == "__main__":
             execute_strategy(
                 config, broker, ws
             )  # check for the ltp value and re-enter or buy/sell as per req
-        symbols_and_config = read_and_get_updated_details(broker, configuration_details)
+        symbols_and_config = read_and_get_updated_details(
+            broker, configuration_details)
         instruments_for_ltp = list(
             (sym_config["exchange|token"] for sym_config in symbols_and_config)
         )
