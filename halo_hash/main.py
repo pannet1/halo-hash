@@ -287,7 +287,7 @@ def manage_strategy(sym_config, broker, ws):
             ) == exit_latest_record["inth"].item()
         )
         print("ACTION IS B")
-        print("Exit conditions ==> ")
+        print(f"Exit conditions for {sym_config['symbol']}==> ")
         print(
             f'{exit_latest_record["intc"].item()} < {exit_latest_record["into"].item()} and {exit_latest_record["into"].item()} == {exit_latest_record["inth"].item()} -> exit all'
         )
@@ -298,7 +298,7 @@ def manage_strategy(sym_config, broker, ws):
             f'{latest_record["intc"].item()} > {latest_record["into"].item()} and {latest_record["into"].item()} == {latest_record["intl"].item()} -> reenter'
         )
         print("<==")
-        if is_time_reached(sym_config["strategy_exit_time"]) or (
+        if (
             exit_condition_1 and exit_condition_2
         ):
             # if 1 == 1: # dummy condition to trigger exit_50_perc
@@ -389,7 +389,7 @@ def manage_strategy(sym_config, broker, ws):
             exit_latest_record["into"].item(
             ) == exit_latest_record["intl"].item()
         )
-        if is_time_reached(sym_config["strategy_exit_time"]) or (
+        if (
             exit_condition_1 and exit_condition_2
         ):
             buy_quantity = int(sym_config["quantity"])
