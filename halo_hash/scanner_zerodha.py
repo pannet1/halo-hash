@@ -1,4 +1,5 @@
 import ast
+import warnings
 import os
 import numpy as np
 from constants import FUTL, logging, CRED_ZERODHA, SECDIR
@@ -11,6 +12,8 @@ from time import sleep
 from candle import Candle
 from datetime import datetime
 import requests
+import numpy
+from prettytable import PrettyTable
 
 from io import BytesIO
 FM = pendulum.now().subtract(days=199).to_datetime_string()
@@ -70,16 +73,20 @@ def get_instrument_details() -> pd.DataFrame:
     return pd.read_csv(BytesIO(r.content))
 
 
+instrument_details = get_instrument_details()
+
 def get_kite():
     try:
         enctoken = None
-
         tokpath = SECDIR + CRED_ZERODHA["userid"] + ".txt"
-        try:
-            with open(tokpath, "r") as tf:
-                enctoken = tf.read()
-                print(f"{tokpath=} has {enctoken=}")
-        except FileNotFoundError:
+        if not FUTL.is_file_not_2day(tokpath):
+            try:
+                with open(tokpath, "r") as tf:
+                    enctoken = tf.read()
+                    print(f"{tokpath=} has {enctoken=}")
+            except FileNotFoundError:
+                enctoken = None
+        else:
             enctoken = None
         bypass = Bypass(
             CRED_ZERODHA["userid"],
@@ -150,8 +157,9 @@ def update_inputs(symbol):
 
 def csv_to_vector(symbol, str_time):
     ifile = f"data/{symbol}_{str_time}.csv"
-    df = pd.read_csv(ifile, index_col="time",
-                     parse_dates=True, dayfirst=True)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UserWarning)
+        df = pd.read_csv(ifile, index_col="time", parse_dates=True, dayfirst=True)
     inputs = {
         "time": df.index.tolist(),
         "open": np.array(df["open"].tolist()),
@@ -189,8 +197,10 @@ def ha(symbol, str_time):
 
 def resample(symbol, ifile, str_time):
     ofile = f"data/{symbol}_{str_time}.csv"
-    df = pd.read_csv(ifile, index_col="time",
-                     parse_dates=True, dayfirst=True)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UserWarning)
+        df = pd.read_csv(ifile, index_col="time",
+                        parse_dates=True, dayfirst=True)
     ohlc = {
         "open": "first",
         "high": "max",
@@ -213,7 +223,6 @@ def resample(symbol, ifile, str_time):
 
 def download_data(symbol):
     try:
-        instrument_details = get_instrument_details()
         tkn = get_instrument_token(symbol, instrument_details)
         print(f"{tkn=}")
         for time_interval in time_intervals:
@@ -227,7 +236,7 @@ def download_data(symbol):
                     to = pendulum.now().to_datetime_string()
                     resp = broker.kite.historical_data(
                         tkn, FM, to, time_interval)
-                    print(resp)
+                    # print(resp)
                     """
                         - `instrument_token` is the instrument identifier (retrieved from the instruments()) call.
                         - `from_date` is the From date (datetime object or string in format of yyyy-mm-dd HH:MM:SS.
@@ -318,10 +327,34 @@ class Strategy:
                         return expression
         except Exception as e:
             logging.error(f"{e} while checking validity of file {filepath}")
+    
+    def print_expressions(self, expressions, symbol, signal):
+        conditions = [condition.strip() for condition in expressions.split(' and ')]
+        print_values = {"symbol": symbol, "signal": signal}
+        print_values.update({condition:condition for condition in conditions})
+        for i, condition in enumerate(conditions):
+            try:
+                variables = condition.split('<') if '<' in condition else condition.split('>')
+                for variable in variables:
+                    variable_name = variable.strip()
+                    value = eval(variable)
+                    print_values[condition]=print_values[condition].replace(variable_name, np.array2string(value) if isinstance(value, numpy.float64) else str(value))
+            except Exception as e:
+                print(f"Error evaluating {condition}: {e}")
+        table = PrettyTable()
+        # # Horizontal table
+        # table.field_names = list(print_values.keys())
+        # table.add_row(list(print_values.values()))
+        # Vertical table
+        table.field_names = ['Key', 'Value']
+        for key, value in print_values.items():
+            table.add_row([key, value])
+        print(table)
 
-    def is_signal(self, expressions):
+    def is_signal(self, expressions, symbol):
         try:
             signal = eval(expressions)
+            self.print_expressions(expressions, symbol, signal)
             logging.info(f"{signal=}")
             return signal
         except Exception as e:
@@ -392,7 +425,7 @@ for strategy in lst_strategies:
         download_data(symbol)
         update_inputs(symbol)
         if obj_strgy.buy_sell.get("buy_xpres"):
-            is_buy = obj_strgy.is_signal(obj_strgy.buy_sell["buy_xpres"])
+            is_buy = obj_strgy.is_signal(obj_strgy.buy_sell["buy_xpres"], symbol)
             if is_buy:
                 with open(f"data/{symbol}.log", "a") as log_file: 
                     log_file.write(f'{datetime.now().time()},buy,obj_strgy.buy_sell["buy_xpres"] is {obj_strgy.buy_sell["buy_xpres"]}\n')
