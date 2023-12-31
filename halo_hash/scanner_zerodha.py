@@ -1,9 +1,21 @@
+from io import BytesIO
+import requests
+from datetime import datetime
+from candle import Candle
+from time import sleep
+import traceback
+import pandas as pd
+import pendulum
 import ast
 import warnings
 import os
+import sys
 import numpy as np
-from constants import FUTL, logging, CRED_ZERODHA, SECDIR
+from constants import FUTL, CRED_ZERODHA, SECDIR
 from omspy_brokers.bypass import Bypass
+from toolkit.logger import Logger
+
+logging = Logger(30)
 
 import pendulum
 import pandas as pd
@@ -15,7 +27,6 @@ import requests
 import numpy
 from prettytable import PrettyTable
 
-from io import BytesIO
 FM = pendulum.now().subtract(days=199).to_datetime_string()
 current_date = datetime.now()
 formatted_date = current_date.strftime("%Y-%m-%d")
@@ -66,14 +77,14 @@ def get_instrument_token(option_name, df):
     return tokens[0] if len(tokens) >= 1 else 0
 
 
-def get_instrument_details() -> pd.DataFrame:
-    url = "https://api.kite.trade/instruments"
-    r = requests.get(url, allow_redirects=True)
-    # open('instruments.csv', 'wb').write(r.content)
-    return pd.read_csv(BytesIO(r.content))
+class Instruments:
 
+    def get(self):
+        url = "https://api.kite.trade/instruments"
+        r = requests.get(url, allow_redirects=True)
+        # open('instruments.csv', 'wb').write(r.content)
+        return pd.read_csv(BytesIO(r.content))
 
-instrument_details = get_instrument_details()
 
 def get_kite():
     try:
@@ -106,35 +117,12 @@ def get_kite():
 
 
 broker = get_kite()
-"""
-lastBusDay = pendulum.now()
-fromBusDay = lastBusDay.subtract(months=24)
-lastBusDay = lastBusDay.replace(
-    hour=0, minute=0, second=0, microsecond=0
-)
-fromBusDay = fromBusDay.replace(
-    hour=0, minute=0, second=0, microsecond=0
-)
-instrument_details = get_instrument_details()
-tkn = get_instrument_token("INFY", instrument_details)
-        
-resp = broker.history(
-    {"instrument_token":tkn,
-    "from_date":fromBusDay.format('YYYY-MM-DD HH:mm:ss'),
-    "to_date":lastBusDay.format('YYYY-MM-DD HH:mm:ss'),
-    "interval":"day",}
-)
-
-print(resp)
-import sys
-sys.exit()
-"""
 
 
 def update_inputs(symbol):
     minute_ca.inputs = csv_to_vector(symbol, "15minute")
     minute_ca.symbol = symbol
-    hour_ca.inputs = csv_to_vector(symbol, "15minute")
+    hour_ca.inputs = csv_to_vector(symbol, "60minute")
     hour_ca.symbol = symbol
     day_ca.inputs = csv_to_vector(symbol, "day")
     day_ca.symbol = symbol
@@ -276,7 +264,7 @@ def download_data(symbol):
                 flag = True
     except Exception as e:
         print(traceback.format_exc())
-        logging.debug(f"{e} while download_data")
+        logging.debug(f"{e} while downloading data")
         flag = False
     finally:
         return flag
@@ -403,6 +391,7 @@ class Strategy:
                 self.buy_sell["sell_xpress"] = xpres
 
 
+instrument_details = Instruments().get()
 month_ca = Candle("1M")
 week_ca = Candle("1W")
 day_ca = Candle("1D")
@@ -422,21 +411,30 @@ for strategy in lst_strategies:
     obj_strgy.set_expressions()
 
     for symbol in obj_strgy.symbols:
-        download_data(symbol)
-        update_inputs(symbol)
-        if obj_strgy.buy_sell.get("buy_xpres"):
-            is_buy = obj_strgy.is_signal(obj_strgy.buy_sell["buy_xpres"], symbol)
-            if is_buy:
-                with open(f"data/{symbol}.log", "a") as log_file: 
-                    log_file.write(f'{datetime.now().time()},buy,obj_strgy.buy_sell["buy_xpres"] is {obj_strgy.buy_sell["buy_xpres"]}\n')
-                # append buy signal, symbol to csv
-                with open(obj_strgy.short_listed_file, "a") as buy_file:
-                    buy_file.write(f"{formatted_date},{symbol},{exchange}\n")
-        if obj_strgy.buy_sell.get("sell_xpress"):
-            is_sell = obj_strgy.is_signal(obj_strgy.buy_sell["sell_xpress"])
-            if is_sell:
-                with open(f"data/{symbol}.log", "a") as log_file: 
-                    log_file.write(f'{datetime.now().time()},sell,obj_strgy.buy_sell["sell_xpress"] is {obj_strgy.buy_sell["sell_xpress"]}\n')
-                # append sell signal, symbol to csv
-                with open(obj_strgy.short_listed_file, "a") as sell_file:
-                    sell_file.write(f"{formatted_date},{symbol},{exchange}\n")
+        try:
+            download_data(symbol)
+            update_inputs(symbol)
+            if obj_strgy.buy_sell.get("buy_xpres"):
+                is_buy = obj_strgy.is_signal(obj_strgy.buy_sell["buy_xpres"], symbol)
+                if is_buy:
+                    with open(f"data/{symbol}.log", "a") as log_file:
+                        log_file.write(
+                            f'{datetime.now().time()},buy,obj_strgy.buy_sell["buy_xpres"] is {obj_strgy.buy_sell["buy_xpres"]}\n')
+                    # append buy signal, symbol to csv
+                    with open(obj_strgy.short_listed_file, "a") as buy_file:
+                        buy_file.write(
+                            f"{formatted_date},{symbol},{exchange}\n")
+            if obj_strgy.buy_sell.get("sell_xpress"):
+                is_sell = obj_strgy.is_signal(obj_strgy.buy_sell["sell_xpress"], symbol)
+                if is_sell:
+                    with open(f"data/{symbol}.log", "a") as log_file:
+                        log_file.write(
+                            f'{datetime.now().time()},sell,obj_strgy.buy_sell["sell_xpress"] is {obj_strgy.buy_sell["sell_xpress"]}\n')
+                    # append sell signal, symbol to csv
+                    with open(obj_strgy.short_listed_file, "a") as sell_file:
+                        sell_file.write(
+                            f"{formatted_date},{symbol},{exchange}\n")
+        except Exception as e:
+            logging.debug(f"{e} in getting data for {symbol}")
+            sleep(1)
+        continue
