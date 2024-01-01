@@ -27,7 +27,6 @@ import requests
 import numpy
 from prettytable import PrettyTable
 
-FM = pendulum.now().subtract(days=199).to_datetime_string()
 current_date = datetime.now()
 formatted_date = current_date.strftime("%Y-%m-%d")
 exchange = "NSE"
@@ -62,7 +61,13 @@ time_intervals = [
     "W",
 ]  # keep the unsupported formats at last
 # follow pandas sampling keywords in case of missing time intervals
-allowed_time_intervals = ["day", "15minute", "60minute", "minute"]
+# https://kite.trade/forum/discussion/7756/python-client-is-failing-to-get-continuous-historical-data-for-instrument
+allowed_time_intervals = {
+    "day": pendulum.now().subtract(days=2000).to_datetime_string(), 
+    "15minute": pendulum.now().subtract(days=100).to_datetime_string(), 
+    "60minute": pendulum.now().subtract(days=400).to_datetime_string(), 
+    "minute": pendulum.now().subtract(days=60).to_datetime_string(), 
+    }
 
 
 def remove_token():
@@ -187,8 +192,7 @@ def resample(symbol, ifile, str_time):
     ofile = f"data/{symbol}_{str_time}.csv"
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=UserWarning)
-        df = pd.read_csv(ifile, index_col="time",
-                        parse_dates=True, dayfirst=True)
+        df = pd.read_csv(ifile, parse_dates=True, dayfirst=True)
     ohlc = {
         "open": "first",
         "high": "max",
@@ -196,6 +200,9 @@ def resample(symbol, ifile, str_time):
         "close": "last",
         "volume": "sum",
     }
+    df['time'] = pd.to_datetime(df['time'])
+    df.set_index('time', inplace=True)
+    df = df.sort_index()
     df = df.resample(str_time, origin="start").apply(ohlc)
     # df = df.drop(df[df.open.isnull()].index)
     df.to_csv(ofile)
@@ -223,7 +230,7 @@ def download_data(symbol):
                 if tkn and time_interval in allowed_time_intervals:
                     to = pendulum.now().to_datetime_string()
                     resp = broker.kite.historical_data(
-                        tkn, FM, to, time_interval)
+                        tkn, allowed_time_intervals[time_interval], to, time_interval)
                     # print(resp)
                     """
                         - `instrument_token` is the instrument identifier (retrieved from the instruments()) call.
@@ -318,15 +325,16 @@ class Strategy:
     
     def print_expressions(self, expressions, symbol, signal):
         conditions = [condition.strip() for condition in expressions.split(' and ')]
-        print_values = {"symbol": symbol, "signal": signal}
-        print_values.update({condition:condition for condition in conditions})
+        print_values = {"symbol": [symbol, symbol]}
+        print_values.update({condition:[condition,False] for condition in conditions})
         for i, condition in enumerate(conditions):
             try:
                 variables = condition.split('<') if '<' in condition else condition.split('>')
                 for variable in variables:
                     variable_name = variable.strip()
                     value = eval(variable)
-                    print_values[condition]=print_values[condition].replace(variable_name, np.array2string(value) if isinstance(value, numpy.float64) else str(value))
+                    print_values[condition][0]=print_values[condition][0].replace(variable_name, np.array2string(value) if isinstance(value, numpy.float64) else str(value))
+                print_values[condition][1] = eval(print_values[condition][0])
             except Exception as e:
                 print(f"Error evaluating {condition}: {e}")
         table = PrettyTable()
@@ -334,9 +342,9 @@ class Strategy:
         # table.field_names = list(print_values.keys())
         # table.add_row(list(print_values.values()))
         # Vertical table
-        table.field_names = ['Key', 'Value']
+        table.field_names = [f"{symbol=}", "condition" ,f"{signal=}"]
         for key, value in print_values.items():
-            table.add_row([key, value])
+            table.add_row([key, value[0], value[1]])
         print(table)
 
     def is_signal(self, expressions, symbol):
