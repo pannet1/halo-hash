@@ -179,12 +179,16 @@ def ha(symbol, str_time):
         )
         df.drop(["o", "h", "l", "c"], axis=1, inplace=True)
         inputs = {
-            "time": df.index.tolist(),
+            "time": df["time"].tolist(),
             "open": np.array(df["open"].tolist()),
             "high": np.array(df["high"].tolist()),
             "low": np.array(df["low"].tolist()),
             "close": np.array(df["close"].tolist()),
         }
+        df = pd.DataFrame(
+            inputs)
+        if len(df) > 0:
+            df.to_csv(f"data/{symbol}_{str_time}_ha.csv", index=False)
         return inputs
 
 
