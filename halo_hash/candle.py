@@ -1,6 +1,7 @@
 import logging
 import talib
 
+
 class Candle:
     """
     for examples of ta lib search for programcreek
@@ -49,7 +50,7 @@ class Candle:
         value = self.inputs["volume"][candle_number]
         logging.debug(f"volume{candle_number}: {value}")
         return value
-    
+
     def vwap(self, candle_number=-2):
         value = self.inputs["vwap"][candle_number]
         logging.debug(f"vwap{candle_number}: {value}")
@@ -147,15 +148,18 @@ class Candle:
 
         if band == "upper":
             self.write_col_to_csv("bbands_upper", ub)
-            logging.debug(f"bbands {band}[{candle_number}]: {ub[candle_number]}")
+            logging.debug(
+                f"bbands {band}[{candle_number}]: {ub[candle_number]}")
             return ub[candle_number]
         elif band == "middle":
             self.write_col_to_csv("bbands_middle", mb)
-            logging.debug(f"bbands {band}[{candle_number}]: {mb[candle_number]}")
+            logging.debug(
+                f"bbands {band}[{candle_number}]: {mb[candle_number]}")
             return mb[candle_number]
         else:
             self.write_col_to_csv("bbands_lower", lb)
-            logging.debug(f"bbands {band}[{candle_number}]: {lb[candle_number]}")
+            logging.debug(
+                f"bbands {band}[{candle_number}]: {lb[candle_number]}")
             return lb[candle_number]
 
     def sma(self, timeperiod=5, candle_number=-1):

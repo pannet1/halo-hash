@@ -1,7 +1,14 @@
-month_ha.close(-2) < month_ha.close(-3)
+month_ha.close(0) > month_ha.open(0)
+and month_ha.open(0) == month_ha.low(0)
+and month_ha.open(0) != month_ha.high(0)
+and month_ca.low(-1) > month_ca.low(-1)
+and month_ca.close(-1) > month_ca.close(-1)
 and month_ca.adx(3) > 5
-and month_ca.plusdi(5) > month_ca.minusdi(5)
-and month_ca.macd(5,8, 3, -1, "line") > month_ca.macd(5, 8, 3, -2, "line")
-and month_ca.rsi(3) > 30
 and month_ca.bbands(5, 2, 0, -1, "upper") > month_ca.bbands(5, 2, 0, -2, "upper")
+and month_ca.macd(5,8, 3, -1, "line") > month_ca.macd(5, 8, 3, -2, "line")
+and hour_ca.rsi(3) < 70
+and hour_ca.stochrsi(14) < 20
+and hour_ca.ema(200, 0) > hour_ca.ema(200, -1)
+and hour_ca.plusdi(5) > month_ca.minusdi(5)
+
 
