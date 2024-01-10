@@ -1,0 +1,144 @@
+    1  ls
+    2  nano /etc/apt/sources.list
+    3  exit
+    4  ls
+    5  ls
+    6  pwd
+    7  ls
+    8  cd
+    9  ls
+   10  ls -la
+   11  lsb_release
+   12  man lsb_release 
+   13  cat /etc/os-release 
+   14  su -
+   15  exit
+   16  nano /etc/apt/sources.list
+   17  apt install ssh openssh-server
+   18  apt install nano vim-nox
+   19  nano /etc/hosts
+   20  nano /etc/hostname
+   21  hostname 
+   22  hostname -f
+   23  apt update
+   24  apt upgrade
+   25  apt -y install ntp
+   26  nano /etc/security/limits.conf 
+   27  apt install clamav clamav-daemon
+   28  apt install pure-ftpd-common pure-ftpd-mysql quota quotatool
+   29  openssl dhparam -out /etc/ssl/private/pure-ftpd-dhparams.pem 2048
+   30  nano /etc/default/pure-ftpd-common
+   31  echo 1 > /etc/pure-ftpd/conf/TLS
+   32  mkdir -p /etc/ssl/private/
+   33  openssl req -x509 -nodes -days 7300 -newkey rsa:2048 -keyout /etc/ssl/private/pure-ftpd.pem -out /etc/ssl/private/pure-ftpd.pem
+   34  apt install bind9 dnsutils
+   35  apt install haveged
+   36  apt install jailkit
+   37  apt install fail2ban
+   38  nano /etc/fail2ban/jail.local
+   39  systemctl restart fail2ban
+   40  apt install ufw
+   41  systemctl
+   42  systemctrl start fail2ban
+   43  systemctl start fail2ban
+   44  systemctl
+   45  systemctl status fail2ban.service 
+   46  systemctl status fail2ban.service 
+   47  fail2ban-server -help
+   48  fail2ban-server -t
+   49  apt install python3-systemd
+   50  nano /etc/fail2ban/jail.local
+   51  fail2ban-server -t
+   52  systemctl
+   53  systemctl restart fail2ban.service 
+   54  systemctl
+   55  systemctl start fail2ban
+   56  systemctl status fail2ban
+   57  nano /etc/fail2ban/jail.local
+   58  systemctl status fail2ban
+   59  systemctl start fail2ban
+   60  systemctl status fail2ban
+   61  systemctl
+   62  systemctl --state
+   63  systemctl --dry-run
+   64  [200~systemctl list-unit-files~
+   65  systemctl list-unit-files 
+   66  systemctl start named-resolvconf.service 
+   67  systemctl list-unit-files 
+   68  systemctl start named-resolvconf.service
+   69  systemctl list-unit-files 
+   70  timedatectl
+   71  systemctl enable ntpsec-wait.service 
+   72  timedatectl
+   73  apt install systemd-timesyncd
+   74  udo systemctl status systemd-timesyncd 
+   75  sudo systemctl status systemd-timesyncd 
+   76  tzselect
+   77  nano ~/.profile 
+   78  nano ~/.profile 
+   79  source ~/.profile 
+   80  timedatectl
+   81  exit
+   82  ls
+   83  su -
+   84  exit
+   85  l
+   86  ls
+   87  ls
+   88  reboot
+   89  ls
+   90  ls
+   91  ls
+   92  sudo systemctl list-units
+   93  sudo systemctl list-unit-files 
+   94  nvim /etc/hosts
+   95  vim /etc/hosts
+   96  nvim /etc/hostname
+   97  vim /etc/hostname 
+   98  sudo systemctl list-unit-files 
+   99  nvim /etc/hosts
+  100  vim /etc/hosts
+  101  restart
+  102  reboot
+  103  ls
+  104  ls
+  105  sudo -
+  106  su -
+  107  ssh nitesh@65.20.80.21
+  108  nano /etc/hostname
+  109  nano /etc/hostname
+  110  nano /etc/hostname
+  111  su -s
+  112  su -sh
+  113  du -dh
+  114  du --help
+  115  du -ch
+  116  du -chs
+  117  ls
+  118  ls
+  119  cd /
+  120  du -chs
+  121  df
+  122  du
+  123  du -s
+  124  du -sh
+  125  ls
+  126  LS
+  127  nvim
+  128  ls
+  129  history
+  130  history | grep usermod
+  131  history | grep nitesh
+  132  usermod -aG sudo carrierc
+  133  cd /home/linuxuser/
+  134  ls
+  135  cd ..
+  136  ls
+  137  userdel -r linuxuser
+  138  ls
+  139  mail
+  140  LW
+  141  ls
+  142  ls
+  143  whoami
+  144  history >> history.txt
