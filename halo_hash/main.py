@@ -109,9 +109,8 @@ def is_order_completed(broker, order_id: str):
     orders = broker.orders
     for order in orders:
         # check if order has keys order_id and status
-        if "order_id" in order and "status" in order:
-            if order["order_id"] == order_id and order["status"] == "COMPLETE":
-                return True
+        if order.get("order_id", "") == order_id and order.get("status", "") == "COMPLETE":
+            return True
     return False
 
 
