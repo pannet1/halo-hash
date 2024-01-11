@@ -101,15 +101,17 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
     return pd.DataFrame()
 
 
-def is_order_completed(broker, order_id):
+def is_order_completed(broker, order_id: str):
     # fields are from
     # https://pypi.org/project/NorenRestApiPy/#md-get_orderbook
     # https://pypi.org/project/NorenRestApiPy/#md-place_order
 
     orders = broker.orders
     for order in orders:
-        if order["order_id"] == order_id and order["status"] == "COMPLETE":
-            return True
+        # check if order has keys order_id and status
+        if "order_id" in order and "status" in order:
+            if order["order_id"] == order_id and order["status"] == "COMPLETE":
+                return True
     return False
 
 
