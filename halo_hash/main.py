@@ -1,4 +1,5 @@
 from omspy_brokers.finvasia import Finvasia
+from prettytable import PrettyTable
 from calculate import entry_quantity
 from wserver import Wserver
 from datetime import datetime, timedelta, date
@@ -8,6 +9,7 @@ import numpy as np
 import pendulum  # pip install pendulum
 import csv
 import time
+import numpy
 
 # globals are mostly imported only once and are
 # in CAPS, only exception is the custom logging
@@ -244,6 +246,11 @@ def place_first_order_for_strategy(sym_config, broker, ws):
     historical_data_df = get_historical_data(sym_config, broker, 1)
     if historical_data_df.empty:
         return sym_config
+    
+    table = PrettyTable()
+    for key, value in sym_config.items():
+        table.add_row([key, value])
+    print(table)
 
     if is_entry_signal(sym_config, broker):
         # if 1 == 1:
@@ -554,9 +561,10 @@ def is_entry_signal(
     candle_data = Candle("")
     candle_data.inputs = inputs
     rsi_time_period = 14
-    rsi_conditions = any(
-        [candle_data.rsi(rsi_time_period, pos) < 50 for pos in range(-6, -1)]
-    )
+    rsi_conditions = [
+        (candle_data.rsi(rsi_time_period, pos) < 50, f"candle_data.rsi({rsi_time_period}, {pos}) < 50") 
+        for pos in range(-6, -1)
+        ]
     heiken_aishi_df = ohlc_to_ha(historical_data_df)
     inputs = {
         "time": heiken_aishi_df.index.tolist(),
@@ -568,19 +576,33 @@ def is_entry_signal(
     ha_candle_data = Candle("")
     ha_candle_data.inputs = inputs
     ema_time_period = 200
-    ema_conditions = any(
-        [
-            ha_candle_data.low(pos) < candle_data.ema(ema_time_period, pos)
-            for pos in range(-6, -1)
-        ]
-    )
-    all_conditions = [
-        rsi_conditions,
-        ema_conditions,
-        candle_data.close(-1) > candle_data.vwap(-1),
-        candle_data.close(-1) > candle_data.sma(20, -1),
+    print("ema")
+    ema_conditions = [
+        (ha_candle_data.low(pos) < candle_data.ema(ema_time_period, pos), f"ha_candle_data.low({pos}) < candle_data.ema({ema_time_period}, {pos})")
+        for pos in range(-6, -1)
     ]
-    if any(all_conditions):
+    candle_data_conditions = [
+        (candle_data.close(-1) > candle_data.vwap(-1), "candle_data.close(-1) > candle_data.vwap(-1)"),
+        (candle_data.close(-1) > candle_data.sma(20, -1), "candle_data.close(-1) > candle_data.sma(20, -1)"),
+    ]
+    signal = any([c[0] for c in rsi_conditions+ema_conditions+candle_data_conditions])
+    table = PrettyTable()
+    table.field_names = [f"Entry Signal for {sym_config['symbol']}", "Value", f"signal={signal}"]
+    table_details = {}
+    for (condition_signal, condition) in rsi_conditions+ema_conditions+candle_data_conditions:
+        variables = condition.split(
+                    '<') if '<' in condition else condition.split('>')
+        condition_as_str = condition
+        for variable in variables:
+            variable_name = variable.strip()
+            value = eval(variable)
+            condition_as_str = condition_as_str.replace(
+                variable_name, np.array2string(value) if isinstance(value, numpy.float64) else str(value))
+        table_details[condition] = [condition_as_str, condition_signal]
+        table.add_row([condition, condition_as_str, condition_signal])
+    print(table)
+    
+    if signal:
         return True
     return False
 
