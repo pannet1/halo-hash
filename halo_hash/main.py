@@ -81,7 +81,7 @@ def ohlc_to_ha(df):
 
 
 def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
-    yesterday = datetime.now() - timedelta(days=30)
+    yesterday = datetime.now() - timedelta(days=200)
     yesterday_time_string = yesterday.strftime("%d-%m-%Y") + " 00:00:00"
     time_obj = time.strptime(yesterday_time_string, "%d-%m-%Y %H:%M:%S")
     start_time = time.mktime(time_obj)
@@ -576,7 +576,6 @@ def is_entry_signal(
     ha_candle_data = Candle("")
     ha_candle_data.inputs = inputs
     ema_time_period = 200
-    print("ema")
     ema_conditions = [
         (ha_candle_data.low(pos) < candle_data.ema(ema_time_period, pos), f"ha_candle_data.low({pos}) < candle_data.ema({ema_time_period}, {pos})")
         for pos in range(-6, -1)
