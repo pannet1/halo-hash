@@ -10,6 +10,7 @@ import pendulum  # pip install pendulum
 import csv
 import time
 import numpy
+import inspect
 
 # globals are mostly imported only once and are
 # in CAPS, only exception is the custom logging
@@ -248,6 +249,7 @@ def place_first_order_for_strategy(sym_config, broker, ws):
         return sym_config
     
     table = PrettyTable()
+    table.field_names = [f"Entry Signal - Key", "Value"]
     for key, value in sym_config.items():
         table.add_row([key, value])
     print(table)
@@ -270,12 +272,27 @@ def is_time_reached(time_in_config):
 
 
 def manage_strategy(sym_config, broker, ws):
+    def get_values_for_print(condition):    
+        variables = condition_as_str.split(
+                    '<') if '<' in condition else condition.split('>')
+        condition_as_str = condition
+        for variable in variables:
+            variable_name = variable.strip()
+            value = eval(variable)
+            condition_as_str = condition_as_str.replace(
+                variable_name, np.array2string(value) if isinstance(value, numpy.float64) else str(value))
+        return condition_as_str
     if "quantity" in sym_config and sym_config["quantity"] == 0:
         return
     historical_data_df = get_historical_data(
         sym_config, broker, int(
             sym_config["intermediate_Candle_timeframe_in_minutes"])
     )
+    table = PrettyTable()
+    table.field_names = [f"Manage Strategy - Key", "Value"]
+    for key, value in sym_config.items():
+        table.add_row([key, value])
+    print(table)
     latest_record = historical_data_df.iloc[[0]]
     condition_1 = latest_record["intc"].item() < latest_record["into"].item()
     condition_2 = latest_record["into"].item() == latest_record["inth"].item()
@@ -294,18 +311,33 @@ def manage_strategy(sym_config, broker, ws):
             exit_latest_record["into"].item(
             ) == exit_latest_record["inth"].item()
         )
-        print("ACTION IS B")
-        print(f"Exit conditions for {sym_config['symbol']}==> ")
-        print(
-            f'{exit_latest_record["intc"].item()} < {exit_latest_record["into"].item()} and {exit_latest_record["into"].item()} == {exit_latest_record["inth"].item()} -> exit all'
-        )
-        print(
-            f'{latest_record["intc"].item()} < {latest_record["into"].item()} and {latest_record["into"].item()} == {latest_record["inth"].item()} -> exit_50_perc'
-        )
-        print(
-            f'{latest_record["intc"].item()} > {latest_record["into"].item()} and {latest_record["into"].item()} == {latest_record["intl"].item()} -> reenter'
-        )
-        print("<==")
+        
+        # Exit All
+        table = PrettyTable()
+        table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={exit_condition_1 and exit_condition_2}", ]
+        exit_condition_1_as_str = inspect.getsource(exit_condition_1)
+        exit_condition_2_as_str = inspect.getsource(exit_condition_2)
+        table.add_row([exit_condition_1_as_str, get_values_for_print(exit_condition_1_as_str), "EXIT_ALL", exit_condition_1])
+        table.add_row([exit_condition_2_as_str, get_values_for_print(exit_condition_2_as_str), "EXIT_ALL", exit_condition_2])
+        print(table)
+
+        table = PrettyTable()
+        table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={condition_1 and condition_2}", ]
+        condition_1_as_str = inspect.getsource(condition_1)
+        condition_2_as_str = inspect.getsource(condition_2)
+        table.add_row([condition_1_as_str, get_values_for_print(condition_1_as_str), "EXIT_50%", condition_1])
+        table.add_row([condition_2_as_str, get_values_for_print(condition_2_as_str), "EXIT_50%", condition_2])
+        print(table)
+        
+        
+        table = PrettyTable()
+        table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={condition_3 and condition_4}", ]
+        condition_3_as_str = inspect.getsource(condition_3)
+        condition_4_as_str = inspect.getsource(condition_4)
+        table.add_row([condition_3_as_str, get_values_for_print(condition_3_as_str), "REENTER", condition_3])
+        table.add_row([condition_4_as_str, get_values_for_print(condition_4_as_str), "REENTER", condition_4])
+        print(table)
+        
         if (
             exit_condition_1 and exit_condition_2
         ):
@@ -397,6 +429,32 @@ def manage_strategy(sym_config, broker, ws):
             exit_latest_record["into"].item(
             ) == exit_latest_record["intl"].item()
         )
+
+        # Exit All
+        table = PrettyTable()
+        table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={exit_condition_1 and exit_condition_2}", ]
+        exit_condition_1_as_str = inspect.getsource(exit_condition_1)
+        exit_condition_2_as_str = inspect.getsource(exit_condition_2)
+        table.add_row([exit_condition_1_as_str, get_values_for_print(exit_condition_1_as_str), "EXIT_ALL", exit_condition_1])
+        table.add_row([exit_condition_2_as_str, get_values_for_print(exit_condition_2_as_str), "EXIT_ALL", exit_condition_2])
+        print(table)
+
+        table = PrettyTable()
+        table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={condition_3 and condition_4}", ]
+        condition_3_as_str = inspect.getsource(condition_3)
+        condition_4_as_str = inspect.getsource(condition_4)
+        table.add_row([condition_3_as_str, get_values_for_print(condition_3_as_str), "EXIT_50%", condition_3])
+        table.add_row([condition_4_as_str, get_values_for_print(condition_4_as_str), "EXIT_50%", condition_4])
+        print(table)
+
+        table = PrettyTable()
+        table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={condition_1 and condition_2}", ]
+        condition_1_as_str = inspect.getsource(condition_1)
+        condition_2_as_str = inspect.getsource(condition_2)
+        table.add_row([condition_1_as_str, get_values_for_print(condition_1_as_str), "EXIT_50%", condition_1])
+        table.add_row([condition_2_as_str, get_values_for_print(condition_2_as_str), "EXIT_50%", condition_2])    
+        print(table)
+        
         if (
             exit_condition_1 and exit_condition_2
         ):
