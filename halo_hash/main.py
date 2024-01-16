@@ -10,7 +10,6 @@ import pendulum  # pip install pendulum
 import csv
 import time
 import numpy
-import inspect
 
 # globals are mostly imported only once and are
 # in CAPS, only exception is the custom logging
@@ -315,27 +314,21 @@ def manage_strategy(sym_config, broker, ws):
         # Exit All
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={exit_condition_1 and exit_condition_2}", ]
-        exit_condition_1_as_str = inspect.getsource(exit_condition_1)
-        exit_condition_2_as_str = inspect.getsource(exit_condition_2)
-        table.add_row([exit_condition_1_as_str, get_values_for_print(exit_condition_1_as_str), "EXIT_ALL", exit_condition_1])
-        table.add_row([exit_condition_2_as_str, get_values_for_print(exit_condition_2_as_str), "EXIT_ALL", exit_condition_2])
+        table.add_row(["latest_close < latest_open", f"{exit_latest_record['intc'].item()} < {exit_latest_record['into'].item()} ", "EXIT_ALL", exit_condition_1])
+        table.add_row(["latest_open == latest_high", f'{exit_latest_record["into"].item()} == {exit_latest_record["inth"].item()}  ', "EXIT_ALL", exit_condition_2])
         print(table)
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={condition_1 and condition_2}", ]
-        condition_1_as_str = inspect.getsource(condition_1)
-        condition_2_as_str = inspect.getsource(condition_2)
-        table.add_row([condition_1_as_str, get_values_for_print(condition_1_as_str), "EXIT_50%", condition_1])
-        table.add_row([condition_2_as_str, get_values_for_print(condition_2_as_str), "EXIT_50%", condition_2])
+        table.add_row(["latest_close < latest_open", f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "EXIT_50%", condition_1])
+        table.add_row(["latesT_open == latest_high", f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])
         print(table)
         
         
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={condition_3 and condition_4}", ]
-        condition_3_as_str = inspect.getsource(condition_3)
-        condition_4_as_str = inspect.getsource(condition_4)
-        table.add_row([condition_3_as_str, get_values_for_print(condition_3_as_str), "REENTER", condition_3])
-        table.add_row([condition_4_as_str, get_values_for_print(condition_4_as_str), "REENTER", condition_4])
+        table.add_row(["latest_close > latest_open", f'{latest_record["intc"].item()} > {latest_record["into"].item()}', "REENTER", condition_3])
+        table.add_row(["latest_open == latest_low", f'{latest_record["into"].item()} == {latest_record["intl"].item()}', "REENTER", condition_4])
         print(table)
         
         if (
@@ -422,37 +415,29 @@ def manage_strategy(sym_config, broker, ws):
             pass
     else:
         exit_condition_1 = (
-            exit_latest_record["intc"].item(
-            ) > exit_latest_record["into"].item()
+            exit_latest_record["intc"].item() > exit_latest_record["into"].item()
         )
         exit_condition_2 = (
-            exit_latest_record["into"].item(
-            ) == exit_latest_record["intl"].item()
+            exit_latest_record["into"].item() == exit_latest_record["intl"].item()
         )
 
         # Exit All
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={exit_condition_1 and exit_condition_2}", ]
-        exit_condition_1_as_str = inspect.getsource(exit_condition_1)
-        exit_condition_2_as_str = inspect.getsource(exit_condition_2)
-        table.add_row([exit_condition_1_as_str, get_values_for_print(exit_condition_1_as_str), "EXIT_ALL", exit_condition_1])
-        table.add_row([exit_condition_2_as_str, get_values_for_print(exit_condition_2_as_str), "EXIT_ALL", exit_condition_2])
+        table.add_row(["latest_close > latest_open", f'{exit_latest_record["intc"].item()} > {exit_latest_record["into"].item()}', "EXIT_ALL", exit_condition_1])
+        table.add_row(["latest_open == latest_low", f'{exit_latest_record["into"].item()} == {exit_latest_record["intl"].item()}', "EXIT_ALL", exit_condition_2])
         print(table)
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={condition_3 and condition_4}", ]
-        condition_3_as_str = inspect.getsource(condition_3)
-        condition_4_as_str = inspect.getsource(condition_4)
-        table.add_row([condition_3_as_str, get_values_for_print(condition_3_as_str), "EXIT_50%", condition_3])
-        table.add_row([condition_4_as_str, get_values_for_print(condition_4_as_str), "EXIT_50%", condition_4])
+        table.add_row(["latest_close > latest_open", f'{latest_record["intc"].item()} > {latest_record["into"].item()}', "EXIT_50%", condition_3])
+        table.add_row(["latest_open == latest_low", f'{latest_record["into"].item()} == {latest_record["intl"].item()}', "EXIT_50%", condition_4])
         print(table)
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={condition_1 and condition_2}", ]
-        condition_1_as_str = inspect.getsource(condition_1)
-        condition_2_as_str = inspect.getsource(condition_2)
-        table.add_row([condition_1_as_str, get_values_for_print(condition_1_as_str), "EXIT_50%", condition_1])
-        table.add_row([condition_2_as_str, get_values_for_print(condition_2_as_str), "EXIT_50%", condition_2])    
+        table.add_row(["latest_close < latest_open", f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "EXIT_50%", condition_1])
+        table.add_row(["latest_open == latest_high", f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])    
         print(table)
         
         if (
