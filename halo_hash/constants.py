@@ -2,7 +2,7 @@ from toolkit.logger import Logger
 from toolkit.fileutils import Fileutils
 from toolkit.telegram import Telegram
 
-logging = Logger(10)
+logging = Logger(30)
 SECDIR = "../../"
 STGY = "strategies/"
 FUTL = Fileutils()
