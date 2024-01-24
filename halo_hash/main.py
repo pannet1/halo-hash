@@ -13,16 +13,12 @@ import numpy
 
 # globals are mostly imported only once and are
 # in CAPS, only exception is the custom logging
-from constants import CRED, STGY, SECDIR, TGRAM, logging
+from constants import CRED, STGY, TGRAM, logging
 
 
 headers_str = "strategy,symbol,exchange,action,intermediate_Candle_timeframe_in_minutes,exit_Candle_timeframe_in_minutes,capital_in_thousand,Risk per trade,Margin required,strategy_entry_time,strategy_exit_time,lot_size,product,token,exchange|token,is_in_position_book,strategy_started,stop_loss,quantity,side"
 
 roll_over_occurred_today = False
-"""
-need to place positions in a common
-place for all strategies away from git
-"""
 local_position_book = STGY + "positions.csv"
 
 
@@ -45,18 +41,6 @@ def load_config_to_list_of_dicts(csv_file_path):
         for j in range(len(data_rows)):
             list_of_dicts[i][headers[j]] = data_rows[j][i]
     return list_of_dicts
-
-
-# def get_current_ltp(broker, instrument_name):
-#     ws = Wserver(broker)
-#     resp = ws.ltp(instrument_name)
-#     print(instrument_name, resp)
-#     ltp = resp.get(instrument_name.split(":")[-1], 0)
-#     return ltp
-
-
-# def exit_all_strategies(strategies):
-#     return []
 
 
 # def rollover_symbols(configuration_details, strategies):
@@ -99,19 +83,15 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
             return historical_data_df
         heiken_aishi_df = ohlc_to_ha(historical_data_df)
         return heiken_aishi_df
-
     return pd.DataFrame()
 
 
 def is_order_completed(broker, order_id: str):
-    # fields are from
-    # https://pypi.org/project/NorenRestApiPy/#md-get_orderbook
-    # https://pypi.org/project/NorenRestApiPy/#md-place_order
-
     orders = broker.orders
     for order in orders:
-        # check if order has keys order_id and status
-        if order.get("order_id", "") == order_id and order.get("status", "") == "COMPLETE":
+        if any(order) and \
+                order.get("order_id", "") == order_id and \
+                order.get("status", "") == "COMPLETE":
             return True
     return False
 
@@ -120,8 +100,6 @@ def save_to_local_position_book(content_to_save):
     with open(local_position_book, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=headers_str.split(","))
         writer.writerow(content_to_save)
-        # f.write(",".join(list(content_to_save.values())) + "\n")
-        # f.write(content_to_save + "\n")
 
 
 def place_order_with_params(sym_config, historical_data_df, broker, ws):
@@ -138,27 +116,17 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
     """
 
     if sym_config["action"] == "S":
-        high_of_last_10_candles = float(historical_data_df["inth"].max())
+        last_10_candles = float(historical_data_df["inth"].max())
         ltp = float(ws.ltp.get(sym_config["exchange|token"]))
-        stop_loss = high_of_last_10_candles - ltp
+        calc = dict(
+            last_10_candles=last_10_candles,
+            ltp=ltp,
+            side="B",
+        )
+        calc.update(sym_config)
+        quantity, stop_loss = entry_quantity(**calc)
         sym_config["stop_loss"] = stop_loss
-        """
-        # moved to calc module
-
-        allowable_quantity_as_per_risk = risk_per_trade / stop_loss
-        traded_quantity = int(min(
-            allowable_quantity_as_per_risk / ltp, allowable_quantity_as_per_capital
-        ))
-        if traded_quantity == 0:
-            return sym_config
-        elif traded_quantity == 1:
-            sell_quantity = 1
-        else:
-            temp = int(int(traded_quantity / lot_size) * lot_size)
-            sell_quantity = int(int(temp / 2) * 2)
-        """
-        sell_quantity = entry_quantity(**sym_config)
-        if sell_quantity == 0:
+        if quantity == 0:
             return sym_config
 
         # add all params to sym_config, this is required to manage the placed order
@@ -166,8 +134,8 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             side="S",
             product=sym_config["product"],  # for NRML
             exchange=sym_config["exchange"],
-            quantity=int(sell_quantity),
-            disclosed_quantity=int(sell_quantity),
+            quantity=quantity,
+            disclosed_quantity=quantity,
             order_type="MKT",
             symbol=sym_config["symbol"],
             # price=prc, # in case of LMT order
@@ -180,43 +148,29 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         if resp and is_order_completed(broker, resp):
             sym_config["is_in_position_book"] = True
             sym_config["side"] = "S"
-            sym_config["quantity"] = int(sell_quantity)
+            sym_config["quantity"] = int(quantity)
             sym_config["strategy_started"] = True
             save_to_local_position_book(sym_config)
             TGRAM.send_msg(resp)
     else:
-        lowest_of_last_10_candles = float(historical_data_df["intl"].min())
-        logging.debug(f"{lowest_of_last_10_candles=}")
+        last_10_candles = float(historical_data_df["intl"].min())
         ltp = float(ws.ltp.get(sym_config["exchange|token"]))
-        logging.debug(f"{ltp=}")
-        stop_loss = ltp - lowest_of_last_10_candles
+        calc = dict(
+            last_10_candles=last_10_candles,
+            ltp=ltp,
+            side="B",
+        )
+        calc.update(sym_config)
+        quantity, stop_loss = entry_quantity(**calc)
         sym_config["stop_loss"] = stop_loss
-        # risk_per_trade = 100 / 10 ( for example) 10
-        # allowable_quantity_as_per_capital =
-        # capital 1000 / margin 1 / 50 ltp (200)
-        """
-        moved to calc
-        allowable_quantity_as_per_risk = risk_per_trade / stop_loss
-        traded_quantity = int(min(
-            allowable_quantity_as_per_risk / ltp, allowable_quantity_as_per_capital
-        ))
-        if traded_quantity == 0:
-            return sym_config
-        elif traded_quantity == 1:
-            buy_quantity = 1
-        else:
-            temp = int(int(traded_quantity / lot_size) * lot_size)
-            buy_quantity = int(int(temp / 2) * 2)
-        """
-        buy_quantity = entry_quantity(**sym_config)
-        if buy_quantity == 0:
+        if quantity == 0:
             return sym_config
         args = dict(
             side="B",
             product=sym_config["product"],  # for NRML
             exchange=sym_config["exchange"],
-            quantity=buy_quantity,
-            disclosed_quantity=buy_quantity,
+            quantity=quantity,
+            disclosed_quantity=quantity,
             order_type="MKT",
             symbol=sym_config["symbol"],
             # price=prc, # in case of LMT order
@@ -229,7 +183,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             sym_config["is_in_position_book"] = True
             sym_config["side"] = "B"
             # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
-            sym_config["quantity"] = buy_quantity
+            sym_config["quantity"] = quantity
             sym_config["strategy_started"] = True
             save_to_local_position_book(sym_config)
             TGRAM.send_msg(resp)
@@ -246,7 +200,7 @@ def place_first_order_for_strategy(sym_config, broker, ws):
     historical_data_df = get_historical_data(sym_config, broker, 1)
     if historical_data_df.empty:
         return sym_config
-    
+
     table = PrettyTable()
     table.field_names = [f"Entry Signal - Key", "Value"]
     for key, value in sym_config.items():
@@ -271,9 +225,9 @@ def is_time_reached(time_in_config):
 
 
 def manage_strategy(sym_config, broker, ws):
-    def get_values_for_print(condition):    
+    def get_values_for_print(condition):
         variables = condition_as_str.split(
-                    '<') if '<' in condition else condition.split('>')
+            '<') if '<' in condition else condition.split('>')
         condition_as_str = condition
         for variable in variables:
             variable_name = variable.strip()
@@ -310,27 +264,35 @@ def manage_strategy(sym_config, broker, ws):
             exit_latest_record["into"].item(
             ) == exit_latest_record["inth"].item()
         )
-        
+
         # Exit All
         table = PrettyTable()
-        table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={exit_condition_1 and exit_condition_2}", ]
-        table.add_row(["latest_close < latest_open", f"{exit_latest_record['intc'].item()} < {exit_latest_record['into'].item()} ", "EXIT_ALL", exit_condition_1])
-        table.add_row(["latest_open == latest_high", f'{exit_latest_record["into"].item()} == {exit_latest_record["inth"].item()}  ', "EXIT_ALL", exit_condition_2])
+        table.field_names = [f"Manage for {sym_config['symbol']}", "Value",
+                             "Action", f"signal={exit_condition_1 and exit_condition_2}", ]
+        table.add_row(["latest_close < latest_open",
+                      f"{exit_latest_record['intc'].item()} < {exit_latest_record['into'].item()} ", "EXIT_ALL", exit_condition_1])
+        table.add_row(["latest_open == latest_high",
+                      f'{exit_latest_record["into"].item()} == {exit_latest_record["inth"].item()}  ', "EXIT_ALL", exit_condition_2])
         print(table)
 
         table = PrettyTable()
-        table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={condition_1 and condition_2}", ]
-        table.add_row(["latest_close < latest_open", f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "EXIT_50%", condition_1])
-        table.add_row(["latesT_open == latest_high", f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])
+        table.field_names = [f"Manage for {sym_config['symbol']}",
+                             "Value", "Action", f"signal={condition_1 and condition_2}", ]
+        table.add_row(["latest_close < latest_open",
+                      f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "EXIT_50%", condition_1])
+        table.add_row(["latesT_open == latest_high",
+                      f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])
         print(table)
-        
-        
+
         table = PrettyTable()
-        table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={condition_3 and condition_4}", ]
-        table.add_row(["latest_close > latest_open", f'{latest_record["intc"].item()} > {latest_record["into"].item()}', "REENTER", condition_3])
-        table.add_row(["latest_open == latest_low", f'{latest_record["into"].item()} == {latest_record["intl"].item()}', "REENTER", condition_4])
+        table.field_names = [f"Manage for {sym_config['symbol']}",
+                             "Value", "Action", f"signal={condition_3 and condition_4}", ]
+        table.add_row(["latest_close > latest_open",
+                      f'{latest_record["intc"].item()} > {latest_record["into"].item()}', "REENTER", condition_3])
+        table.add_row(["latest_open == latest_low",
+                      f'{latest_record["into"].item()} == {latest_record["intl"].item()}', "REENTER", condition_4])
         print(table)
-        
+
         if (
             exit_condition_1 and exit_condition_2
         ):
@@ -390,56 +352,45 @@ def manage_strategy(sym_config, broker, ws):
             # Check the account balance to determine, the quantity to be added
             # TODO @pannet1:
             print("Reentering")
-            """
-            args = dict(
-                side="B",  # since re-enter,
-                product=sym_config["product"],  #  for NRML
-                exchange=sym_config["exchange"],
-                quantity=abs(sym_config["quantity"]),
-                disclosed_quantity=abs(sym_config["quantity"]),
-                order_type="MKT",
-                symbol=sym_config["symbol"],
-                # price=prc, # in case of LMT order
-                tag="reenter",
-            )
-            TGRAM.send_msg(args)
-            resp = broker.order_place(**args)
-            TGRAM.send_msg(resp)
-            logging.debug(resp)
-            if resp and is_order_completed(broker, resp):
-                # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
-                sym_config["is_in_position_book"] = True
-                sym_config["side"] = "B"
-                save_to_local_position_book(sym_config)
-            """
             pass
     else:
         exit_condition_1 = (
-            exit_latest_record["intc"].item() > exit_latest_record["into"].item()
+            exit_latest_record["intc"].item(
+            ) > exit_latest_record["into"].item()
         )
         exit_condition_2 = (
-            exit_latest_record["into"].item() == exit_latest_record["intl"].item()
+            exit_latest_record["into"].item(
+            ) == exit_latest_record["intl"].item()
         )
 
         # Exit All
         table = PrettyTable()
-        table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={exit_condition_1 and exit_condition_2}", ]
-        table.add_row(["latest_close > latest_open", f'{exit_latest_record["intc"].item()} > {exit_latest_record["into"].item()}', "EXIT_ALL", exit_condition_1])
-        table.add_row(["latest_open == latest_low", f'{exit_latest_record["into"].item()} == {exit_latest_record["intl"].item()}', "EXIT_ALL", exit_condition_2])
+        table.field_names = [f"Manage for {sym_config['symbol']}", "Value",
+                             "Action", f"signal={exit_condition_1 and exit_condition_2}", ]
+        table.add_row(["latest_close > latest_open",
+                      f'{exit_latest_record["intc"].item()} > {exit_latest_record["into"].item()}', "EXIT_ALL", exit_condition_1])
+        table.add_row(["latest_open == latest_low",
+                      f'{exit_latest_record["into"].item()} == {exit_latest_record["intl"].item()}', "EXIT_ALL", exit_condition_2])
         print(table)
 
         table = PrettyTable()
-        table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={condition_3 and condition_4}", ]
-        table.add_row(["latest_close > latest_open", f'{latest_record["intc"].item()} > {latest_record["into"].item()}', "EXIT_50%", condition_3])
-        table.add_row(["latest_open == latest_low", f'{latest_record["into"].item()} == {latest_record["intl"].item()}', "EXIT_50%", condition_4])
+        table.field_names = [f"Manage for {sym_config['symbol']}",
+                             "Value", "Action", f"signal={condition_3 and condition_4}", ]
+        table.add_row(["latest_close > latest_open",
+                      f'{latest_record["intc"].item()} > {latest_record["into"].item()}', "EXIT_50%", condition_3])
+        table.add_row(["latest_open == latest_low",
+                      f'{latest_record["into"].item()} == {latest_record["intl"].item()}', "EXIT_50%", condition_4])
         print(table)
 
         table = PrettyTable()
-        table.field_names = [f"Manage for {sym_config['symbol']}", "Value", "Action", f"signal={condition_1 and condition_2}", ]
-        table.add_row(["latest_close < latest_open", f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "EXIT_50%", condition_1])
-        table.add_row(["latest_open == latest_high", f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])    
+        table.field_names = [f"Manage for {sym_config['symbol']}",
+                             "Value", "Action", f"signal={condition_1 and condition_2}", ]
+        table.add_row(["latest_close < latest_open",
+                      f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "EXIT_50%", condition_1])
+        table.add_row(["latest_open == latest_high",
+                      f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])
         print(table)
-        
+
         if (
             exit_condition_1 and exit_condition_2
         ):
@@ -503,31 +454,6 @@ def manage_strategy(sym_config, broker, ws):
             # you have the capital for this strategy which is for every trade of this strategy.
             # you know the ltp when you ltp, so based on that we can calculate the margin required
             # for a trade.
-            """
-            exit_quantity = abs(sym_config["quantity"])
-            args = dict(
-                side="S",  # since re-enter,
-                product=sym_config["product"],  #  for NRML
-                exchange=sym_config["exchange"],
-                quantity=exit_quantity,
-                disclosed_quantity=exit_quantity,
-                order_type="MKT",
-                symbol=sym_config["symbol"],
-                # price=prc, # in case of LMT order
-                tag="reenter",
-            )
-            TGRAM.send_msg(args)
-            resp = broker.order_place(**args)
-            logging.debug(resp)
-            TGRAM.send_msg(resp)
-            if resp and is_order_completed(broker, resp):
-                # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
-                sym_config["is_in_position_book"] = True
-                sym_config["side"] = "S"
-                sym_config["quantity"] = exit_quantity
-                save_to_local_position_book(sym_config)
-
-            """
             pass
 
 
@@ -605,9 +531,10 @@ def is_entry_signal(
     candle_data.inputs = inputs
     rsi_time_period = 14
     rsi_conditions = [
-        (candle_data.rsi(rsi_time_period, pos) < 50, f"candle_data.rsi({rsi_time_period}, {pos}) < 50") 
+        (candle_data.rsi(rsi_time_period, pos) < 50,
+         f"candle_data.rsi({rsi_time_period}, {pos}) < 50")
         for pos in range(-6, -1)
-        ]
+    ]
     heiken_aishi_df = ohlc_to_ha(historical_data_df)
     inputs = {
         "time": heiken_aishi_df.index.tolist(),
@@ -620,20 +547,25 @@ def is_entry_signal(
     ha_candle_data.inputs = inputs
     ema_time_period = 200
     ema_conditions = [
-        (ha_candle_data.low(pos) < candle_data.ema(ema_time_period, pos), f"ha_candle_data.low({pos}) < candle_data.ema({ema_time_period}, {pos})")
+        (ha_candle_data.low(pos) < candle_data.ema(ema_time_period, pos),
+         f"ha_candle_data.low({pos}) < candle_data.ema({ema_time_period}, {pos})")
         for pos in range(-6, -1)
     ]
     candle_data_conditions = [
-        (candle_data.close(-1) > candle_data.vwap(-1), "candle_data.close(-1) > candle_data.vwap(-1)"),
-        (candle_data.close(-1) > candle_data.sma(20, -1), "candle_data.close(-1) > candle_data.sma(20, -1)"),
+        (candle_data.close(-1) > candle_data.vwap(-1),
+         "candle_data.close(-1) > candle_data.vwap(-1)"),
+        (candle_data.close(-1) > candle_data.sma(20, -1),
+         "candle_data.close(-1) > candle_data.sma(20, -1)"),
     ]
-    signal = any([c[0] for c in rsi_conditions+ema_conditions+candle_data_conditions])
+    signal = any([c[0] for c in rsi_conditions +
+                 ema_conditions+candle_data_conditions])
     table = PrettyTable()
-    table.field_names = [f"Entry Signal for {sym_config['symbol']}", "Value", f"signal={signal}"]
+    table.field_names = [
+        f"Entry Signal for {sym_config['symbol']}", "Value", f"signal={signal}"]
     table_details = {}
     for (condition_signal, condition) in rsi_conditions+ema_conditions+candle_data_conditions:
         variables = condition.split(
-                    '<') if '<' in condition else condition.split('>')
+            '<') if '<' in condition else condition.split('>')
         condition_as_str = condition
         for variable in variables:
             variable_name = variable.strip()
@@ -643,7 +575,7 @@ def is_entry_signal(
         table_details[condition] = [condition_as_str, condition_signal]
         table.add_row([condition, condition_as_str, condition_signal])
     print(table)
-    
+
     if signal:
         return True
     return False
@@ -712,6 +644,14 @@ def read_and_get_updated_details(broker, configuration_details):
     return symbols_and_config
 
 
+def free_margin(broker):
+    margins = broker.margins
+    if isinstance(margins, dict):
+        print(margins)
+        return int(float(margins.get("cash", 0)))
+    return 0.05
+
+
 if __name__ == "__main__":
     # position is {resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S",
     # TODO: check position book at start to validate if they are still valid or canceled/closed by eod process yesterday
@@ -728,6 +668,7 @@ if __name__ == "__main__":
     broker = BROKER(**CRED)
     if broker.authenticate():
         print("login successful")
+        MARGIN = free_margin(broker)
     symbols_and_config = read_and_get_updated_details(
         broker, configuration_details)
 
@@ -752,4 +693,3 @@ if __name__ == "__main__":
             (sym_config["exchange|token"] for sym_config in symbols_and_config)
         )
         print(instruments_for_ltp)
-
