@@ -217,7 +217,7 @@ def is_time_reached(time_in_config):
     # check if current time is greater than time as per configuration
     # and return True or False
     entry_time = time_in_config.split(":")
-    current_time = pendulum.now()
+    current_time = pendulum.now(pendulum.timezone("Asia/Kolkata"))
     target_time = current_time.replace(
         hour=int(entry_time[0]), minute=int(entry_time[1]), second=0, microsecond=0
     )
