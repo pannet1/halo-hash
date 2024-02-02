@@ -458,7 +458,9 @@ def manage_strategy(sym_config, broker, ws):
 
 
 def execute_strategy(sym_config, broker, ws):
+    logging.info(f"strategy_started is {sym_config.get('strategy_started')} and time reached is {is_time_reached(sym_config['strategy_entry_time'])}")
     if not sym_config.get("strategy_started", None):
+        
         # strategy is not started, so start it
         # by checking if the start time has reached or not
         if not is_time_reached(sym_config["strategy_entry_time"]):
