@@ -237,22 +237,22 @@ def manage_strategy(sym_config, broker, ws):
         return condition_as_str
     if "quantity" in sym_config and sym_config["quantity"] == 0:
         return
-    historical_data_df = get_historical_data(
+    historical_data_ha_df = get_historical_data(
         sym_config, broker, int(
-            sym_config["intermediate_Candle_timeframe_in_minutes"])
+            sym_config["intermediate_Candle_timeframe_in_minutes"]), True
     )
     table = PrettyTable()
     table.field_names = [f"Manage Strategy - Key", "Value"]
     for key, value in sym_config.items():
         table.add_row([key, value])
     print(table)
-    latest_record = historical_data_df.iloc[[0]]
+    latest_record = historical_data_ha_df.iloc[[0]]
     condition_1 = latest_record["intc"].item() < latest_record["into"].item()
     condition_2 = latest_record["into"].item() == latest_record["inth"].item()
     condition_3 = latest_record["intc"].item() > latest_record["into"].item()
     condition_4 = latest_record["into"].item() == latest_record["intl"].item()
     exit_historical_data_df = get_historical_data(
-        sym_config, broker, int(sym_config["exit_Candle_timeframe_in_minutes"])
+        sym_config, broker, int(sym_config["exit_Candle_timeframe_in_minutes"], True)
     )
     exit_latest_record = exit_historical_data_df.iloc[[0]]
     if sym_config["action"] == "B":
@@ -269,27 +269,27 @@ def manage_strategy(sym_config, broker, ws):
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}", "Value",
                              "Action", f"signal={exit_condition_1 and exit_condition_2}", ]
-        table.add_row(["latest_close < latest_open",
+        table.add_row([f'{sym_config["exit_Candle_timeframe_in_minutes"]} min latest_ha_close < latest_ha_open',
                       f"{exit_latest_record['intc'].item()} < {exit_latest_record['into'].item()} ", "EXIT_ALL", exit_condition_1])
-        table.add_row(["latest_open == latest_high",
+        table.add_row([f'{sym_config["exit_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_high',
                       f'{exit_latest_record["into"].item()} == {exit_latest_record["inth"].item()}  ', "EXIT_ALL", exit_condition_2])
         print(table)
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}",
                              "Value", "Action", f"signal={condition_1 and condition_2}", ]
-        table.add_row(["latest_close < latest_open",
+        table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_close < latest_ha_open',
                       f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "EXIT_50%", condition_1])
-        table.add_row(["latesT_open == latest_high",
+        table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_high',
                       f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])
         print(table)
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}",
                              "Value", "Action", f"signal={condition_3 and condition_4}", ]
-        table.add_row(["latest_close > latest_open",
+        table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_close > latest_ha_open',
                       f'{latest_record["intc"].item()} > {latest_record["into"].item()}', "REENTER", condition_3])
-        table.add_row(["latest_open == latest_low",
+        table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_low',
                       f'{latest_record["into"].item()} == {latest_record["intl"].item()}', "REENTER", condition_4])
         print(table)
 
@@ -367,27 +367,27 @@ def manage_strategy(sym_config, broker, ws):
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}", "Value",
                              "Action", f"signal={exit_condition_1 and exit_condition_2}", ]
-        table.add_row(["latest_close > latest_open",
+        table.add_row([f'{sym_config["exit_Candle_timeframe_in_minutes"]} min latest_ha_close > latest_ha_open',
                       f'{exit_latest_record["intc"].item()} > {exit_latest_record["into"].item()}', "EXIT_ALL", exit_condition_1])
-        table.add_row(["latest_open == latest_low",
+        table.add_row([f'{sym_config["exit_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_low',
                       f'{exit_latest_record["into"].item()} == {exit_latest_record["intl"].item()}', "EXIT_ALL", exit_condition_2])
         print(table)
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}",
                              "Value", "Action", f"signal={condition_3 and condition_4}", ]
-        table.add_row(["latest_close > latest_open",
+        table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_close > latest_ha_open',
                       f'{latest_record["intc"].item()} > {latest_record["into"].item()}', "EXIT_50%", condition_3])
-        table.add_row(["latest_open == latest_low",
+        table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_low',
                       f'{latest_record["into"].item()} == {latest_record["intl"].item()}', "EXIT_50%", condition_4])
         print(table)
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}",
                              "Value", "Action", f"signal={condition_1 and condition_2}", ]
-        table.add_row(["latest_close < latest_open",
+        table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_close < latest_ha_open',
                       f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "EXIT_50%", condition_1])
-        table.add_row(["latest_open == latest_high",
+        table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_high',
                       f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])
         print(table)
 
