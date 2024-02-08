@@ -56,11 +56,11 @@ def load_config_to_list_of_dicts(csv_file_path):
 
 def ohlc_to_ha(df):
     ha_df = pd.DataFrame()
-    ha_df["intc"] = (df["into"] + df["inth"] + df["intl"] + df["intc"]) / 4
-    ha_df["into"] = ((df["into"] + df["intc"]) / 2).shift(1)
-    ha_df["inth"] = df[["inth", "into", "intc"]].max(axis=1)
-    ha_df["intl"] = df[["intl", "into", "intc"]].min(axis=1)
-    ha_df.loc[0, "into"] = df["into"].iloc[1]
+    ha_df["ha_close"] = (df["into"] + df["inth"] + df["intl"] + df["intc"]) / 4
+    ha_df["ha_open"] = ((df["into"] + df["intc"]) / 2).shift(1)
+    ha_df["ha_high"] = df[["inth", "into", "intc"]].max(axis=1)
+    ha_df["ha_low"] = df[["intl", "into", "intc"]].min(axis=1)
+    ha_df.loc[0, "ha_open"] = df["into"].iloc[1]
     return ha_df
 
 
@@ -540,10 +540,10 @@ def is_entry_signal(
     heiken_aishi_df = ohlc_to_ha(historical_data_df)
     inputs = {
         "time": heiken_aishi_df.index.tolist(),
-        "open": np.array(heiken_aishi_df["into"].tolist()),
-        "high": np.array(heiken_aishi_df["inth"].tolist()),
-        "low": np.array(heiken_aishi_df["intl"].tolist()),
-        "close": np.array(heiken_aishi_df["intc"].tolist()),
+        "open": np.array(heiken_aishi_df["ha_open"].tolist()),
+        "high": np.array(heiken_aishi_df["ha_high"].tolist()),
+        "low": np.array(heiken_aishi_df["ha_low"].tolist()),
+        "close": np.array(heiken_aishi_df["ha_close"].tolist()),
     }
     ha_candle_data = Candle("")
     ha_candle_data.inputs = inputs
