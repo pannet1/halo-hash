@@ -1,0 +1,12 @@
+# Dependencies of dependencies
+pyyaml
+pandas==2.3.1
+NorenRestApiPy
+requests
+websocket_client
+pydantic==1.10.8
+pendulum
+pyotp
+git+https://github.com/pannet1/omspy
+git+https://github.com/pannet1/omspy-brokers
+git+https://github.com/pannet1/toolkit
