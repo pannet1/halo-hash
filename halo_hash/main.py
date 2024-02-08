@@ -56,11 +56,11 @@ def load_config_to_list_of_dicts(csv_file_path):
 
 def ohlc_to_ha(df):
     ha_df = pd.DataFrame()
-    ha_df["intc"] = (df["into"] + df["inth"] + df["intl"] + df["intc"]) / 4
-    ha_df["into"] = ((df["into"] + df["intc"]) / 2).shift(1)
-    ha_df["inth"] = df[["inth", "into", "intc"]].max(axis=1)
-    ha_df["intl"] = df[["intl", "into", "intc"]].min(axis=1)
-    ha_df.loc[0, "into"] = df["into"].iloc[1]
+    ha_df["intc"] = int(round((df["into"] + df["inth"] + df["intl"] + df["intc"]) / 4))
+    ha_df["into"] = int(round(((df["into"] + df["intc"]) / 2).shift(1)))
+    ha_df["inth"] = int(round(df[["inth", "into", "intc"]].max(axis=1)))
+    ha_df["intl"] = int(round(df[["intl", "into", "intc"]].min(axis=1)))
+    ha_df.loc[0, "into"] = int(round(df["into"].iloc[1]))
     return ha_df
 
 
