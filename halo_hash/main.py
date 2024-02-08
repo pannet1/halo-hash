@@ -252,8 +252,7 @@ def manage_strategy(sym_config, broker, ws):
     condition_3 = latest_record["intc"].item() > latest_record["into"].item()
     condition_4 = latest_record["into"].item() == latest_record["intl"].item()
     exit_historical_data_df = get_historical_data(
-        sym_config, broker, int(sym_config["exit_Candle_timeframe_in_minutes"], True)
-    )
+        sym_config, broker, int(sym_config["exit_Candle_timeframe_in_minutes"]), True)
     exit_latest_record = exit_historical_data_df.iloc[[0]]
     if sym_config["action"] == "B":
         exit_condition_1 = (
