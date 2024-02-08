@@ -56,11 +56,11 @@ def load_config_to_list_of_dicts(csv_file_path):
 
 def ohlc_to_ha(df):
     ha_df = pd.DataFrame()
-    ha_df["intc"] = ((df["into"] + df["inth"] + df["intl"] + df["intc"]) / 4).round().astype(int)
-    ha_df["into"] = (((df["into"] + df["intc"]) / 2).shift(1)).round().astype(int)
-    ha_df["inth"] = (df[["inth", "into", "intc"]].max(axis=1)).round().astype(int)
-    ha_df["intl"] = (df[["intl", "into", "intc"]].min(axis=1)).round().astype(int)
-    ha_df.loc[0, "into"] = (df["into"].iloc[1]).round().astype(int)
+    ha_df["intc"] = (df["into"] + df["inth"] + df["intl"] + df["intc"]) / 4
+    ha_df["into"] = ((df["into"] + df["intc"]) / 2).shift(1)
+    ha_df["inth"] = df[["inth", "into", "intc"]].max(axis=1)
+    ha_df["intl"] = df[["intl", "into", "intc"]].min(axis=1)
+    ha_df.loc[0, "into"] = df["into"].iloc[1]
     return ha_df
 
 
@@ -246,14 +246,14 @@ def manage_strategy(sym_config, broker, ws):
     for key, value in sym_config.items():
         table.add_row([key, value])
     print(table)
-    latest_record = historical_data_ha_df.iloc[[0]]
+    latest_record = (historical_data_ha_df.iloc[[0]].round()).astype(int)
     condition_1 = latest_record["intc"].item() < latest_record["into"].item()
     condition_2 = latest_record["into"].item() == latest_record["inth"].item()
     condition_3 = latest_record["intc"].item() > latest_record["into"].item()
     condition_4 = latest_record["into"].item() == latest_record["intl"].item()
     exit_historical_data_df = get_historical_data(
         sym_config, broker, int(sym_config["exit_Candle_timeframe_in_minutes"]), True)
-    exit_latest_record = exit_historical_data_df.iloc[[0]]
+    exit_latest_record = (exit_historical_data_df.iloc[[0]].round()).astype(int)
     if sym_config["action"] == "B":
         exit_condition_1 = (
             exit_latest_record["intc"].item(
