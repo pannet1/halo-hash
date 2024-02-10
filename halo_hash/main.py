@@ -253,7 +253,9 @@ def manage_strategy(sym_config, broker, ws):
     condition_4 = latest_record["into"].item() == latest_record["intl"].item()
     exit_historical_data_df = get_historical_data(
         sym_config, broker, int(sym_config["exit_Candle_timeframe_in_minutes"]), True)
-    exit_latest_record = (exit_historical_data_df.iloc[[0]].round()).astype(int)
+    print(exit_historical_data_df)
+    exit_latest_record = (
+        exit_historical_data_df.iloc[[0]].round()).astype(int)
     if sym_config["action"] == "B":
         exit_condition_1 = (
             exit_latest_record["intc"].item(
@@ -457,9 +459,10 @@ def manage_strategy(sym_config, broker, ws):
 
 
 def execute_strategy(sym_config, broker, ws):
-    logging.info(f"strategy_started is {sym_config.get('strategy_started')} and time reached is {is_time_reached(sym_config['strategy_entry_time'])}")
+    logging.info(
+        f"strategy_started is {sym_config.get('strategy_started')} and time reached is {is_time_reached(sym_config['strategy_entry_time'])}")
     if not sym_config.get("strategy_started", None):
-        
+
         # strategy is not started, so start it
         # by checking if the start time has reached or not
         if not is_time_reached(sym_config["strategy_entry_time"]):
