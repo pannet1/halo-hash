@@ -54,14 +54,33 @@ def load_config_to_list_of_dicts(csv_file_path):
 #     return configuration_details, strategies
 
 
+# def ohlc_to_ha(df):
+#     ha_df = pd.DataFrame()
+#     ha_df["intc"] = (df["into"] + df["inth"] + df["intl"] + df["intc"]) / 4
+#     ha_df["into"] = ((df["into"] + df["intc"]) / 2).shift(1)
+#     ha_df["inth"] = df[["inth", "into", "intc"]].max(axis=1)
+#     ha_df["intl"] = df[["intl", "into", "intc"]].min(axis=1)
+#     ha_df.loc[0, "into"] = df["into"].iloc[1]
+#     return ha_df
+
 def ohlc_to_ha(df):
-    ha_df = pd.DataFrame()
-    ha_df["intc"] = (df["into"] + df["inth"] + df["intl"] + df["intc"]) / 4
-    ha_df["into"] = ((df["into"] + df["intc"]) / 2).shift(1)
-    ha_df["inth"] = df[["inth", "into", "intc"]].max(axis=1)
-    ha_df["intl"] = df[["intl", "into", "intc"]].min(axis=1)
-    ha_df.loc[0, "into"] = df["into"].iloc[1]
-    return ha_df
+    df = df[::-1]
+    heikin_ashi_df = pd.DataFrame(index=df.index.values, columns=[
+                                  'into', 'inth', 'intl', 'intc'])
+    heikin_ashi_df['intc'] = (
+        df['into'] + df['inth'] + df['intl'] + df['intc']) / 4
+    for i in range(len(df)):
+        if i == 0:
+            heikin_ashi_df.iat[0, 0] = df['into'].iloc[0]
+        else:
+            heikin_ashi_df.iat[i, 0] = (
+                heikin_ashi_df.iat[i-1, 0] + heikin_ashi_df.iat[i-1, 3]) / 2
+    heikin_ashi_df['inth'] = heikin_ashi_df.loc[:, [
+        'into', 'intc']].join(df['inth']).max(axis=1)
+    heikin_ashi_df['intl'] = heikin_ashi_df.loc[:, [
+        'into', 'intc']].join(df['intl']).min(axis=1)
+    heikin_ashi_df = heikin_ashi_df[::-1]
+    return heikin_ashi_df
 
 
 def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):

@@ -19,6 +19,7 @@ def ohlc_to_ha(df):
 
 
 def heikin_ashi(df):
+    df = df[::-1]
     heikin_ashi_df = pd.DataFrame(index=df.index.values, columns=[
                                   'into', 'inth', 'intl', 'intc'])
     heikin_ashi_df['intc'] = (
@@ -33,6 +34,7 @@ def heikin_ashi(df):
         'into', 'intc']].join(df['inth']).max(axis=1)
     heikin_ashi_df['intl'] = heikin_ashi_df.loc[:, [
         'into', 'intc']].join(df['intl']).min(axis=1)
+    heikin_ashi_df = heikin_ashi_df[::-1]
     return heikin_ashi_df
 
 
@@ -54,7 +56,6 @@ def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
         if not is_hieken_ashi:
             return historical_data_df
         heiken_aishi_df = heikin_ashi(historical_data_df)
-        print("heiken ashi")
         return heiken_aishi_df
     print("no historical data")
     return pd.DataFrame()
