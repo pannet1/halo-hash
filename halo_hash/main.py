@@ -265,7 +265,7 @@ def manage_strategy(sym_config, broker, ws):
     for key, value in sym_config.items():
         table.add_row([key, value])
     print(table)
-    latest_record = (historical_data_ha_df.iloc[[1]].round()).astype(int)
+    latest_record = (historical_data_ha_df.iloc[[0]].round()).astype(int)
     condition_1 = latest_record["intc"].item() < latest_record["into"].item()
     condition_2 = latest_record["into"].item() == latest_record["inth"].item()
     condition_3 = latest_record["intc"].item() > latest_record["into"].item()
@@ -274,7 +274,7 @@ def manage_strategy(sym_config, broker, ws):
         sym_config, broker, int(sym_config["exit_Candle_timeframe_in_minutes"]), True)
     print(exit_historical_data_df)
     exit_latest_record = (
-        exit_historical_data_df.iloc[[1]].round()).astype(int)
+        exit_historical_data_df.iloc[[0]].round()).astype(int)
     if sym_config["action"] == "B":
         exit_condition_1 = (
             exit_latest_record["intc"].item(
