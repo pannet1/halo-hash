@@ -28,8 +28,7 @@ def entry_quantity(**calc):
             calc["stop_loss"] = stop_loss
             print(f"{calc=}")
             return quantity, stop_loss
-    else:
-        return 0, 0
+    return 0, 0
 
 
 if __name__ == "__main__":
