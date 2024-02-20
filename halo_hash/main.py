@@ -298,17 +298,19 @@ def manage_strategy(sym_config, broker, ws):
                       f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "EXIT_50%", condition_1])
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_high',
                       f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])
-        table.add_row(['Has Ext 50 reached already',
+        table.add_row(['No exit 50 previously',
                       f'{sym_config["is_exit_50_reached"]}', "EXIT_50%", sym_config["is_exit_50_reached"]=="False"])
         print(table)
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}",
-                             "Value", "Action", f"signal={condition_3 and condition_4}", ]
+                             "Value", "Action", f"signal={condition_3 and condition_4 and sym_config['is_exit_50_reached']=='True'}", ]
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_close > latest_ha_open',
                       f'{latest_record["intc"].item()} > {latest_record["into"].item()}', "REENTER", condition_3])
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_low',
                       f'{latest_record["into"].item()} == {latest_record["intl"].item()}', "REENTER", condition_4])
+        table.add_row(['Has Ext 50 reached already',
+                      f'{sym_config["is_exit_50_reached"]}', "REENTER", sym_config["is_exit_50_reached"]=="True"])
         print(table)
 
         if (
@@ -423,17 +425,19 @@ def manage_strategy(sym_config, broker, ws):
                       f'{latest_record["intc"].item()} > {latest_record["into"].item()}', "EXIT_50%", condition_3])
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_low',
                       f'{latest_record["into"].item()} == {latest_record["intl"].item()}', "EXIT_50%", condition_4])
-        table.add_row(['Has Ext 50 reached already',
+        table.add_row(['No exit 50 previously',
                       f'{sym_config["is_exit_50_reached"]}', "EXIT_50%", sym_config["is_exit_50_reached"]=="False"])
         print(table)
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}",
-                             "Value", "Action", f"signal={condition_1 and condition_2}", ]
+                             "Value", "Action", f"signal={condition_1 and condition_2 and sym_config["is_exit_50_reached"]=='True'}", ]
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_close < latest_ha_open',
-                      f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "EXIT_50%", condition_1])
+                      f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "REENTER", condition_1])
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_high',
-                      f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])
+                      f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "REENTER", condition_2])
+        table.add_row(['Has Ext 50 reached already',
+                      f'{sym_config["is_exit_50_reached"]}', "REENTER", sym_config["is_exit_50_reached"]=="True"])
         print(table)
 
         if exit_condition_1 and exit_condition_2:
