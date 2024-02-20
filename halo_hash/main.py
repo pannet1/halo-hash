@@ -165,11 +165,12 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         print(resp)
         logging.debug(resp)
         if resp and is_order_completed(broker, resp):
-            sym_config["is_in_position_book"] = True
+            sym_config["is_in_position_book"] = "True"
             sym_config["side"] = "S"
             sym_config["quantity"] = int(quantity)
-            sym_config["strategy_started"] = True
+            sym_config["strategy_started"] = "True"
             sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
+            sym_config["is_exit_50_reached"] = "False"
             save_to_local_position_book(sym_config)
             TGRAM.send_msg(resp)
     else:
@@ -200,12 +201,13 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
         resp = broker.order_place(**args)
         logging.debug(resp)
         if resp and is_order_completed(broker, resp):
-            sym_config["is_in_position_book"] = True
+            sym_config["is_in_position_book"] = "True"
             sym_config["side"] = "B"
             # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
             sym_config["quantity"] = quantity
-            sym_config["strategy_started"] = True
+            sym_config["strategy_started"] = "True"
             sym_config["last_transaction_time"] == datetime.today().strftime('%d-%m-%Y')
+            sym_config["is_exit_50_reached"] = "False"
             save_to_local_position_book(sym_config)
             TGRAM.send_msg(resp)
     return sym_config
@@ -213,8 +215,8 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
 
 def place_first_order_for_strategy(sym_config, broker, ws):
     if sym_config.get(
-        "is_in_position_book", False
-    ):  # if this is already in position book
+        "is_in_position_book", "False"
+    ) == "True":  # if this is already in position book
         return sym_config
     print(
         f"==> Not in position book so checking for entry signal {sym_config} <==")
@@ -291,13 +293,13 @@ def manage_strategy(sym_config, broker, ws):
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}",
-                             "Value", "Action", f"signal={condition_1 and condition_2 and not sym_config['is_exit_50_reached']}", ]
+                             "Value", "Action", f"signal={condition_1 and condition_2 and sym_config['is_exit_50_reached']=="False"}", ]
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_close < latest_ha_open',
                       f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "EXIT_50%", condition_1])
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_high',
                       f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])
         table.add_row(['Has Ext 50 reached already',
-                      f'{sym_config["is_exit_50_reached"]}', "EXIT_50%", sym_config["is_exit_50_reached"]])
+                      f'{sym_config["is_exit_50_reached"]}', "EXIT_50%", sym_config["is_exit_50_reached"]=="False"])
         print(table)
 
         table = PrettyTable()
@@ -333,12 +335,12 @@ def manage_strategy(sym_config, broker, ws):
             logging.debug(resp)
             if resp and is_order_completed(broker, resp):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
-                sym_config["is_in_position_book"] = True
+                sym_config["is_in_position_book"] = "True"
                 sym_config["side"] = "S"
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
 
-        elif condition_1 and condition_2 and not sym_config["is_exit_50_reached"]:
+        elif condition_1 and condition_2 and sym_config["is_exit_50_reached"] == "False":
             # elif 1 == 1: # dummy condition to trigger exit_50_perc
             print("exit_50_perc")
             exit_quantity = int(int(sym_config["quantity"]) / 2)
@@ -359,10 +361,10 @@ def manage_strategy(sym_config, broker, ws):
             logging.debug(resp)
             if resp and is_order_completed(broker, resp):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
-                sym_config["is_in_position_book"] = True
+                sym_config["is_in_position_book"] = "True"
                 sym_config["side"] = "S"
                 sym_config["quantity"] = exit_quantity
-                sym_config["is_exit_50_reached"] = True
+                sym_config["is_exit_50_reached"] = "True"
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
 
@@ -388,9 +390,9 @@ def manage_strategy(sym_config, broker, ws):
             logging.debug(resp)
             if resp and is_order_completed(broker, resp):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
-                sym_config["is_in_position_book"] = True
+                sym_config["is_in_position_book"] = "True"
                 sym_config["side"] = "B"
-                sym_config["is_exit_50_reached"] = False
+                sym_config["is_exit_50_reached"] = "False"
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
     else:
@@ -415,13 +417,13 @@ def manage_strategy(sym_config, broker, ws):
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}",
-                             "Value", "Action", f"signal={condition_3 and condition_4  and not sym_config['is_exit_50_reached']}", ]
+                             "Value", "Action", f"signal={condition_3 and condition_4  and sym_config['is_exit_50_reached']=="False"}", ]
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_close > latest_ha_open',
                       f'{latest_record["intc"].item()} > {latest_record["into"].item()}', "EXIT_50%", condition_3])
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_low',
                       f'{latest_record["into"].item()} == {latest_record["intl"].item()}', "EXIT_50%", condition_4])
         table.add_row(['Has Ext 50 reached already',
-                      f'{sym_config["is_exit_50_reached"]}', "EXIT_50%", sym_config["is_exit_50_reached"]])
+                      f'{sym_config["is_exit_50_reached"]}', "EXIT_50%", sym_config["is_exit_50_reached"]=="False"])
         print(table)
 
         table = PrettyTable()
@@ -455,7 +457,7 @@ def manage_strategy(sym_config, broker, ws):
             logging.debug(resp)
             if resp and is_order_completed(broker, resp):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
-                sym_config["is_in_position_book"] = True
+                sym_config["is_in_position_book"] = "True"
                 sym_config["side"] = "B"
                 sym_config["quantity"] = buy_quantity
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
@@ -483,10 +485,10 @@ def manage_strategy(sym_config, broker, ws):
             logging.debug(resp)
             if resp and is_order_completed(broker, resp):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
-                sym_config["is_in_position_book"] = True
+                sym_config["is_in_position_book"] = "True"
                 sym_config["side"] = "B"
                 sym_config["quantity"] = exit_quantity
-                sym_config["is_exit_50_reached"] = True
+                sym_config["is_exit_50_reached"] = "True"
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
                 # TODO: entry price = ltp
@@ -517,9 +519,9 @@ def manage_strategy(sym_config, broker, ws):
             logging.debug(resp)
             if resp and is_order_completed(broker, resp):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
-                sym_config["is_in_position_book"] = True
+                sym_config["is_in_position_book"] = "True"
                 sym_config["side"] = "S"
-                sym_config["is_exit_50_reached"] = False
+                sym_config["is_exit_50_reached"] = "False"
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
 
@@ -527,7 +529,7 @@ def manage_strategy(sym_config, broker, ws):
 def execute_strategy(sym_config, broker, ws):
     logging.info(
         f"strategy_started is {sym_config.get('strategy_started')} and time reached is {is_time_reached(sym_config['strategy_entry_time'])}")
-    if not sym_config.get("strategy_started", None):
+    if not sym_config.get("strategy_started", "False") == "True":
 
         # strategy is not started, so start it
         # by checking if the start time has reached or not
@@ -535,9 +537,9 @@ def execute_strategy(sym_config, broker, ws):
             # start time has not reached, so wait for the next loop
             return sym_config
         # start time has reached, so proceed
-        sym_config["strategy_started"] = False
+        sym_config["strategy_started"] = "False"
         sym_config = place_first_order_for_strategy(sym_config, broker, ws)
-        if not sym_config.get("strategy_started", None):
+        if not sym_config.get("strategy_started", "False") == "True":
             return sym_config
     # strategy is started, so manage it
     manage_strategy(sym_config, broker, ws)
@@ -567,7 +569,7 @@ def is_available_in_position_book(open_positions, config):
     # set this to True sym_config["is_in_position_book"]
     quantity = 0
     desired_position = {}
-    is_exit_50_reached = False
+    is_exit_50_reached = "False"
     for position in open_positions:
         if config["symbol"] == position["symbol"]:  # Add strategy name here
             dir = 1 if position["side"] == "B" else -1
@@ -578,8 +580,8 @@ def is_available_in_position_book(open_positions, config):
             break
     for value in open_positions:
         if config["symbol"] == value["symbol"]:  # Add strategy name here
-            if value.get("is_exit_50_reached", False):
-                is_exit_50_reached = True
+            if value.get("is_exit_50_reached", "False") == "True":
+                is_exit_50_reached = "True"
     return (quantity, desired_position, is_exit_50_reached)
 
 
