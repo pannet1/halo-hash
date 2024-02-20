@@ -16,7 +16,7 @@ import numpy
 from constants import CRED, STGY, TGRAM, logging
 
 
-headers_str = "strategy,symbol,exchange,action,intermediate_Candle_timeframe_in_minutes,exit_Candle_timeframe_in_minutes,capital_in_thousand,Risk per trade,Margin required,strategy_entry_time,strategy_exit_time,lot_size,product,token,exchange|token,is_in_position_book,strategy_started,stop_loss,quantity,side"
+headers_str = "strategy,symbol,exchange,action,intermediate_Candle_timeframe_in_minutes,exit_Candle_timeframe_in_minutes,capital_in_thousand,Risk per trade,Margin required,strategy_entry_time,strategy_exit_time,lot_size,product,token,exchange|token,is_in_position_book,strategy_started,stop_loss,quantity,side,is_exit_50_reached,last_transaction_time"
 
 roll_over_occurred_today = False
 local_position_book = STGY + "positions.csv"
@@ -169,6 +169,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             sym_config["side"] = "S"
             sym_config["quantity"] = int(quantity)
             sym_config["strategy_started"] = True
+            sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
             save_to_local_position_book(sym_config)
             TGRAM.send_msg(resp)
     else:
@@ -204,6 +205,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
             sym_config["quantity"] = quantity
             sym_config["strategy_started"] = True
+            sym_config["last_transaction_time"] == datetime.today().strftime('%d-%m-%Y')
             save_to_local_position_book(sym_config)
             TGRAM.send_msg(resp)
     return sym_config
@@ -244,17 +246,9 @@ def is_time_reached(time_in_config):
 
 
 def manage_strategy(sym_config, broker, ws):
-    def get_values_for_print(condition):
-        variables = condition_as_str.split(
-            '<') if '<' in condition else condition.split('>')
-        condition_as_str = condition
-        for variable in variables:
-            variable_name = variable.strip()
-            value = eval(variable)
-            condition_as_str = condition_as_str.replace(
-                variable_name, np.array2string(value) if isinstance(value, numpy.float64) else str(value))
-        return condition_as_str
     if "quantity" in sym_config and sym_config["quantity"] == 0:
+        return
+    if "last_transaction_time" in sym_config and sym_config["last_transaction_time"] == datetime.today().strftime('%d-%m-%Y'):
         return
     historical_data_ha_df = get_historical_data(
         sym_config, broker, int(
@@ -297,11 +291,13 @@ def manage_strategy(sym_config, broker, ws):
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}",
-                             "Value", "Action", f"signal={condition_1 and condition_2}", ]
+                             "Value", "Action", f"signal={condition_1 and condition_2 and not sym_config['is_exit_50_reached']}", ]
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_close < latest_ha_open',
                       f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "EXIT_50%", condition_1])
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_high',
                       f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])
+        table.add_row(['Has Ext 50 reached already',
+                      f'{sym_config["is_exit_50_reached"]}', "EXIT_50%", sym_config["is_exit_50_reached"]])
         print(table)
 
         table = PrettyTable()
@@ -339,9 +335,10 @@ def manage_strategy(sym_config, broker, ws):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "S"
+                sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
 
-        elif condition_1 and condition_2:
+        elif condition_1 and condition_2 and not sym_config["is_exit_50_reached"]:
             # elif 1 == 1: # dummy condition to trigger exit_50_perc
             print("exit_50_perc")
             exit_quantity = int(int(sym_config["quantity"]) / 2)
@@ -365,14 +362,37 @@ def manage_strategy(sym_config, broker, ws):
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "S"
                 sym_config["quantity"] = exit_quantity
+                sym_config["is_exit_50_reached"] = True
+                sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
 
         elif condition_3 and condition_4:
             # reenter / add quantity
             # Check the account balance to determine, the quantity to be added
             # TODO @pannet1:
-            print("Reentering")
-            pass
+            print("reenter")
+            args = dict(
+                side="B",  # since reenter, B will give B
+                product=sym_config["product"],  # for NRML
+                exchange=sym_config["exchange"],
+                quantity=abs(sym_config["quantity"]),
+                disclosed_quantity=abs(sym_config["quantity"]),
+                order_type="MKT",
+                symbol=sym_config["symbol"],
+                # price=prc, # in case of LMT order
+                tag="reenter",
+            )
+            TGRAM.send_msg(args)
+            resp = broker.order_place(**args)
+            TGRAM.send_msg(resp)
+            logging.debug(resp)
+            if resp and is_order_completed(broker, resp):
+                # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
+                sym_config["is_in_position_book"] = True
+                sym_config["side"] = "B"
+                sym_config["is_exit_50_reached"] = False
+                sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
+                save_to_local_position_book(sym_config)
     else:
         exit_condition_1 = (
             exit_latest_record["intc"].item(
@@ -395,11 +415,13 @@ def manage_strategy(sym_config, broker, ws):
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}",
-                             "Value", "Action", f"signal={condition_3 and condition_4}", ]
+                             "Value", "Action", f"signal={condition_3 and condition_4  and not sym_config['is_exit_50_reached']}", ]
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_close > latest_ha_open',
                       f'{latest_record["intc"].item()} > {latest_record["into"].item()}', "EXIT_50%", condition_3])
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_low',
                       f'{latest_record["into"].item()} == {latest_record["intl"].item()}', "EXIT_50%", condition_4])
+        table.add_row(['Has Ext 50 reached already',
+                      f'{sym_config["is_exit_50_reached"]}', "EXIT_50%", sym_config["is_exit_50_reached"]])
         print(table)
 
         table = PrettyTable()
@@ -436,6 +458,7 @@ def manage_strategy(sym_config, broker, ws):
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "B"
                 sym_config["quantity"] = buy_quantity
+                sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
 
             TGRAM.send_msg(
@@ -463,6 +486,8 @@ def manage_strategy(sym_config, broker, ws):
                 sym_config["is_in_position_book"] = True
                 sym_config["side"] = "B"
                 sym_config["quantity"] = exit_quantity
+                sym_config["is_exit_50_reached"] = True
+                sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
                 # TODO: entry price = ltp
 
@@ -474,7 +499,29 @@ def manage_strategy(sym_config, broker, ws):
             # you have the capital for this strategy which is for every trade of this strategy.
             # you know the ltp when you ltp, so based on that we can calculate the margin required
             # for a trade.
-            pass
+            print("reenter")
+            args = dict(
+                side="S",  # since reenter, S will give S
+                product=sym_config["product"],  # for NRML
+                exchange=sym_config["exchange"],
+                quantity=abs(sym_config["quantity"]),
+                disclosed_quantity=abs(sym_config["quantity"]),
+                order_type="MKT",
+                symbol=sym_config["symbol"],
+                # price=prc, # in case of LMT order
+                tag="reenter",
+            )
+            TGRAM.send_msg(args)
+            resp = broker.order_place(**args)
+            TGRAM.send_msg(resp)
+            logging.debug(resp)
+            if resp and is_order_completed(broker, resp):
+                # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
+                sym_config["is_in_position_book"] = True
+                sym_config["side"] = "S"
+                sym_config["is_exit_50_reached"] = False
+                sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
+                save_to_local_position_book(sym_config)
 
 
 def execute_strategy(sym_config, broker, ws):
@@ -520,6 +567,7 @@ def is_available_in_position_book(open_positions, config):
     # set this to True sym_config["is_in_position_book"]
     quantity = 0
     desired_position = {}
+    is_exit_50_reached = False
     for position in open_positions:
         if config["symbol"] == position["symbol"]:  # Add strategy name here
             dir = 1 if position["side"] == "B" else -1
@@ -528,7 +576,11 @@ def is_available_in_position_book(open_positions, config):
         if config["symbol"] == value["symbol"]:  # Add strategy name here
             desired_position = value
             break
-    return (quantity, desired_position)
+    for value in open_positions:
+        if config["symbol"] == value["symbol"]:  # Add strategy name here
+            if value.get("is_exit_50_reached", False):
+                is_exit_50_reached = True
+    return (quantity, desired_position, is_exit_50_reached)
 
 
 def is_entry_signal(
@@ -634,17 +686,19 @@ def read_and_get_updated_details(broker, configuration_details):
         # https://github.com/Shoonya-Dev/ShoonyaApi-py?tab=readme-ov-file#-get_quotesexchange-token
         sym_config["lot_size"] = broker.scriptinfo(
             sym_config["exchange"], sym_config["token"]).get("ls")
-        quantity, position = is_available_in_position_book(
+        quantity, position, is_exit_50_reached = is_available_in_position_book(
             open_positions, sym_config
         )
         if position:  # available in position book
             symbols_and_config[i].update(position)
             symbols_and_config[i]["quantity"] = quantity
+            symbols_and_config[i]["is_exit_50_reached"] = is_exit_50_reached
+            symbols_and_config[i]["last_transaction_time"] = position.get("last_transaction_time")
 
     # Check for older shortlisted symbols to manage
     for pos in open_positions:
         if (pos["strategy"], pos["symbol"]) not in [(i["strategy"], i["symbol"]) for i in symbols_and_config]:
-            quantity, position = is_available_in_position_book(
+            quantity, position, is_exit_50_reached = is_available_in_position_book(
                 open_positions, {"symbol": pos["symbol"]}
             )
             if position and quantity != 0:  # available in position book
@@ -658,7 +712,11 @@ def read_and_get_updated_details(broker, configuration_details):
                 )
                 sym_config.update(position)
                 sym_config["quantity"] = quantity
+                symbols_and_config[i]["is_exit_50_reached"] = is_exit_50_reached
+                symbols_and_config[i]["last_transaction_time"] = position.get("last_transaction_time")
                 symbols_and_config.append(sym_config)
+
+    symbols_and_config = [config for config in symbols_and_config if config["last_transaction_time"] != datetime.today().strftime('%d-%m-%Y')]
 
     print("=====Updated symbols_and_config - Start======")
     for pos in symbols_and_config:
