@@ -431,7 +431,7 @@ def manage_strategy(sym_config, broker, ws):
 
         table = PrettyTable()
         table.field_names = [f"Manage for {sym_config['symbol']}",
-                             "Value", "Action", f"signal={condition_1 and condition_2 and sym_config["is_exit_50_reached"]=='True'}", ]
+                             "Value", "Action", f"signal={condition_1 and condition_2 and sym_config['is_exit_50_reached']=='True'}", ]
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_close < latest_ha_open',
                       f'{latest_record["intc"].item()} < {latest_record["into"].item()}', "REENTER", condition_1])
         table.add_row([f'{sym_config["intermediate_Candle_timeframe_in_minutes"]} min latest_ha_open == latest_ha_high',
