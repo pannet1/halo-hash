@@ -712,8 +712,8 @@ def read_and_get_updated_details(broker, configuration_details):
                 )
                 sym_config.update(position)
                 sym_config["quantity"] = quantity
-                symbols_and_config[i]["is_exit_50_reached"] = is_exit_50_reached
-                symbols_and_config[i]["last_transaction_time"] = position.get("last_transaction_time")
+                symbols_and_config["is_exit_50_reached"] = is_exit_50_reached
+                symbols_and_config["last_transaction_time"] = position.get("last_transaction_time")
                 symbols_and_config.append(sym_config)
 
     symbols_and_config = [config for config in symbols_and_config if config["last_transaction_time"] != datetime.today().strftime('%d-%m-%Y')]
