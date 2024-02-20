@@ -368,7 +368,7 @@ def manage_strategy(sym_config, broker, ws):
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
 
-        elif condition_3 and condition_4:
+        elif condition_3 and condition_4 and sym_config["is_exit_50_reached"] == "True":
             # reenter / add quantity
             # Check the account balance to determine, the quantity to be added
             # TODO @pannet1:
@@ -392,6 +392,7 @@ def manage_strategy(sym_config, broker, ws):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = "True"
                 sym_config["side"] = "B"
+                sym_config["quantity"] = int(sym_config["quantity"]) * 2
                 sym_config["is_exit_50_reached"] = "False"
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
@@ -435,9 +436,7 @@ def manage_strategy(sym_config, broker, ws):
                       f'{latest_record["into"].item()} == {latest_record["inth"].item()}', "EXIT_50%", condition_2])
         print(table)
 
-        if (
-            exit_condition_1 and exit_condition_2
-        ):
+        if exit_condition_1 and exit_condition_2:
             buy_quantity = int(sym_config["quantity"])
             # exit all quantities
             args = dict(
@@ -465,7 +464,7 @@ def manage_strategy(sym_config, broker, ws):
 
             TGRAM.send_msg(
                 f"Exiting all quantities for {sym_config['symbol']}")
-        elif condition_3 and condition_4:
+        elif condition_3 and condition_4 and sym_config["is_exit_50_reached"] == "False":
             # Exit 50% quantity
             exit_quantity = int(int(sym_config["quantity"]) / 2)
             args = dict(
@@ -493,10 +492,8 @@ def manage_strategy(sym_config, broker, ws):
                 save_to_local_position_book(sym_config)
                 # TODO: entry price = ltp
 
-        elif (condition_1 and condition_2) or (
-            float(ws.ltp[sym_config["exchange|token"]]
-                  ) >= sym_config["stop_loss"]
-        ):  # TODO @pannet1: is this correct - ltp reaches stop loss
+        elif condition_1 and condition_2 and sym_config["is_exit_50_reached"] == "True":  
+            # TODO @pannet1: is this correct - ltp reaches stop loss
             # reenter / add quantity # Check the account balance to determine, the quantity to be added
             # you have the capital for this strategy which is for every trade of this strategy.
             # you know the ltp when you ltp, so based on that we can calculate the margin required
@@ -521,6 +518,7 @@ def manage_strategy(sym_config, broker, ws):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = "True"
                 sym_config["side"] = "S"
+                sym_config["quantity"] = int(sym_config["quantity"]) * 2
                 sym_config["is_exit_50_reached"] = "False"
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
