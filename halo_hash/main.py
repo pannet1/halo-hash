@@ -698,7 +698,9 @@ def read_and_get_updated_details(broker, configuration_details):
             symbols_and_config[i]["quantity"] = quantity
             symbols_and_config[i]["is_exit_50_reached"] = is_exit_50_reached
             symbols_and_config[i]["last_transaction_time"] = position.get("last_transaction_time")
-
+        else:
+            symbols_and_config[i]["is_exit_50_reached"] = "False"
+            symbols_and_config[i]["last_transaction_time"] = "01-01-2024"
     # Check for older shortlisted symbols to manage
     for pos in open_positions:
         if (pos["strategy"], pos["symbol"]) not in [(i["strategy"], i["symbol"]) for i in symbols_and_config]:
