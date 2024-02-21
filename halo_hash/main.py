@@ -206,7 +206,7 @@ def place_order_with_params(sym_config, historical_data_df, broker, ws):
             # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"B","M",'
             sym_config["quantity"] = quantity
             sym_config["strategy_started"] = "True"
-            sym_config["last_transaction_time"] == datetime.today().strftime('%d-%m-%Y')
+            sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
             sym_config["is_exit_50_reached"] = "False"
             save_to_local_position_book(sym_config)
             TGRAM.send_msg(resp)
