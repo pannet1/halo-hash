@@ -1,6 +1,7 @@
 # ignore data folder
 data/
 strategies/
+logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

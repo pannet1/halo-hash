@@ -1,8 +1,9 @@
-from toolkit.logger import Logger
+from logzero import logger, logfile
 from toolkit.fileutils import Fileutils
 from toolkit.telegram import Telegram
+from datetime import date
 
-logging = Logger(30)
+logfile(f"logs/halo-hash-{str(date.today())}.log")
 SECDIR = "../../"
 STGY = "strategies/"
 FUTL = Fileutils()
