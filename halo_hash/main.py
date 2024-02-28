@@ -397,7 +397,7 @@ def manage_strategy(sym_config, broker, ws):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = "True"
                 sym_config["side"] = "B"
-                sym_config["quantity"] = int(sym_config["quantity"]) * 2
+                sym_config["quantity"] = int(sym_config["quantity"])
                 sym_config["life_cycle_state"] = "REENTER"
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
@@ -527,7 +527,7 @@ def manage_strategy(sym_config, broker, ws):
                 # details = f'{resp["request_time"]},{resp["norenordno"]},{sym_config["action"]},{sym_config["instrument_name"]},{sym_config["quantity"]},"S","M",'
                 sym_config["is_in_position_book"] = "True"
                 sym_config["side"] = "S"
-                sym_config["quantity"] = int(sym_config["quantity"]) * 2
+                sym_config["quantity"] = int(sym_config["quantity"])
                 sym_config["life_cycle_state"] = "REENTER"
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
