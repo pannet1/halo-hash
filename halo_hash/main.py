@@ -554,9 +554,9 @@ def execute_strategy(sym_config, broker, ws):
     if is_time_reached(sym_config["strategy_entry_time"]) and not is_time_reached(sym_config["strategy_exit_time"]):
         manage_strategy(sym_config, broker, ws)
     elif not is_time_reached(sym_config["strategy_entry_time"]):
-        print(f'waiting for entry time - {sym_config["strategy_entry_time"]} for {sym_config["symbol"]}')
+        logger.info(f'waiting for entry time - {sym_config["strategy_entry_time"]} for {sym_config["symbol"]}')
     elif is_time_reached(sym_config["strategy_exit_time"]):
-        print(f'Exit time - {sym_config["strategy_exit_time"]} reached for {sym_config["symbol"]}')
+        logger.info(f'Exit time - {sym_config["strategy_exit_time"]} reached for {sym_config["symbol"]}')
 
 def read_strategies(config) -> list[dict]:
     strategy_name = config["strategy"]
