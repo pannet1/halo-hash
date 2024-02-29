@@ -343,6 +343,7 @@ def manage_strategy(sym_config, broker, ws):
                 sym_config["is_in_position_book"] = "True"
                 sym_config["side"] = "S"
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
+                sym_config["life_cycle_state"] = "EXIT_ALL"
                 save_to_local_position_book(sym_config)
 
         elif condition_1 and condition_2 and (sym_config['life_cycle_state']=='False' or sym_config['life_cycle_state']=='REENTER'):
@@ -469,6 +470,7 @@ def manage_strategy(sym_config, broker, ws):
                 sym_config["is_in_position_book"] = "True"
                 sym_config["side"] = "B"
                 sym_config["quantity"] = buy_quantity
+                sym_config["life_cycle_state"] = "EXIT_ALL"
                 sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
                 save_to_local_position_book(sym_config)
 
