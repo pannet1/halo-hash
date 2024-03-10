@@ -258,7 +258,7 @@ def manage_strategy(symbols, action):
                 tag="EXIT_50",
             )
             place_order_and_save_to_position_book(args, sym_config)
-        elif action == "REENTER" and sym_config['life_cycle_state']!='False' and sym_config['life_cycle_state']=='EXIT_50%'
+        elif action == "REENTER" and sym_config['life_cycle_state']!='False' and sym_config['life_cycle_state']=='EXIT_50%':
             args = dict(
                 side=sym_config["action"],  # since reenter, B will give B
                 product=sym_config["product"],  # for NRML
@@ -302,7 +302,7 @@ def manage_strategy(symbols, action):
                 symbol=sym_config["symbol"],
                 tag="False",
             )
-            
+
 @client.on(events.NewMessage(chats=channel_ids))
 async def my_event_handler(event):
     msg = event.raw_text
