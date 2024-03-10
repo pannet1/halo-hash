@@ -10,7 +10,8 @@ FUTL = Fileutils()
 CONFIG = FUTL.get_lst_fm_yml(SECDIR + "halo-hash.yml")
 CRED = CONFIG["finvasia"]
 CRED_ZERODHA = CONFIG["zerodha"]
-TGRAM = Telegram(**CONFIG["telegram"])
+CRED_TELEGRAM = CONFIG["telegram"]
+TGRAM = Telegram({"api_key": CRED_TELEGRAM['api_key'], "chat_id" :CRED_TELEGRAM['chat_id']})
 
 if __name__ == "__main__":
     TGRAM.send_msg("testing")

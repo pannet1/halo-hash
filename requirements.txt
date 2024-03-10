@@ -11,3 +11,4 @@ websocket-client
 pendulum
 ta-lib
 git+https://github.com/pannet1/kiteext
+telethon
