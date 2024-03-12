@@ -84,9 +84,11 @@ def is_available_in_position_book(open_positions, config):
 def read_and_get_updated_details(broker, configuration_details, symbols):
     symbols_and_config = []
     for config in configuration_details:
+        logger.info(config)
         for symbol in symbols:
             config.update({"symbol":symbol, "exchange": "NSE"})
-            symbols_and_config += config
+            logger.info(config)
+            symbols_and_config.append(config)
     logger.info(symbols_and_config)
 
     open_positions = []
@@ -200,7 +202,7 @@ def ohlc_to_ha(df):
     heikin_ashi_df = heikin_ashi_df[::-1]
     return heikin_ashi_df
 
-def get_historical_data(sym_config, broker, interval=1, is_hieken_ashi=False):
+def get_historical_data(sym_config, interval=1, is_hieken_ashi=False):
     yesterday = datetime.now() - timedelta(days=200)
     yesterday_time_string = yesterday.strftime("%d-%m-%Y") + " 00:00:00"
     time_obj = time.strptime(yesterday_time_string, "%d-%m-%Y %H:%M:%S")
@@ -302,6 +304,7 @@ def manage_strategy(symbols, action):
                 symbol=sym_config["symbol"],
                 tag="False",
             )
+            place_order_and_save_to_position_book(args, sym_config)
 
 @client.on(events.NewMessage(chats=channel_ids))
 async def my_event_handler(event):
@@ -309,7 +312,7 @@ async def my_event_handler(event):
     if "Extra Data:" in msg:
         try:
             intended_msg_list = msg.split("Extra Data:")[1].split(",")
-            symbol_shortlisted = [symbol.split(" - ") for symbol in intended_msg_list if "-" in symbol]
+            symbol_shortlisted = [symbol.split(" - ")[0] for symbol in intended_msg_list if "-" in symbol]
             if "Re enter" in intended_msg_list[0]:
                 manage_strategy(symbol_shortlisted, "REENTER")
             elif "Full exit" in intended_msg_list[0]:
