@@ -172,7 +172,7 @@ def save_to_local_position_book(content_to_save):
 def place_order_and_save_to_position_book(args, sym_config):
     TGRAM.send_msg(args)
     resp = broker.order_place(**args)
-    TGRAM.send_msg(resp)
+    TGRAM.send_msg(resp if resp else "Got None from Broker")
     logger.debug(resp)
     if resp and is_order_completed(broker, resp):
         sym_config["is_in_position_book"] = "True"
@@ -226,16 +226,19 @@ def get_historical_data(sym_config, interval=1, is_hieken_ashi=False):
 def manage_strategy(symbols, action):
     symbols_and_config = read_and_get_updated_details(
             broker, configuration_details, symbols)
+    logger.info(symbols_and_config)
     for symbol in symbols:
+        logger.info(f"Checking {symbol=}")
         try:
             sym_config = [config for config in symbols_and_config if config["symbol"] == symbol][0]
         except IndexError:
             continue
+        logger.info(sym_config)
         if "quantity" in sym_config and sym_config["quantity"] == 0:
             continue
         if "last_transaction_time" in sym_config and sym_config["last_transaction_time"] == datetime.today().strftime('%d-%m-%Y'):
             continue
-        if action == "EXIT_ALL":
+        if action == "EXIT_ALL" and "quantity" in sym_config:
             args = dict(
                 side="S" if sym_config["action"] == "B" else "B",   # Buy if sell, sell if bought
                 product=sym_config["product"],  # for NRML
@@ -247,7 +250,7 @@ def manage_strategy(symbols, action):
                 tag="EXIT_ALL",
             )
             place_order_and_save_to_position_book(args, sym_config)
-        elif action == "EXIT_50" and (sym_config['life_cycle_state']=='False' or sym_config['life_cycle_state']=='REENTER'):
+        elif action == "EXIT_50"  and "quantity" in sym_config and (sym_config['life_cycle_state']=='False' or sym_config['life_cycle_state']=='REENTER'):
             exit_quantity = int(int(sym_config["quantity"]) / 2)
             args = dict(
                 side="S" if sym_config["action"] == "B" else "B",  # since exiting, B will give S
@@ -260,7 +263,7 @@ def manage_strategy(symbols, action):
                 tag="EXIT_50",
             )
             place_order_and_save_to_position_book(args, sym_config)
-        elif action == "REENTER" and sym_config['life_cycle_state']!='False' and sym_config['life_cycle_state']=='EXIT_50%':
+        elif action == "REENTER"  and "quantity" in sym_config and sym_config['life_cycle_state']!='False' and sym_config['life_cycle_state']=='EXIT_50%':
             args = dict(
                 side=sym_config["action"],  # since reenter, B will give B
                 product=sym_config["product"],  # for NRML
@@ -312,7 +315,7 @@ async def my_event_handler(event):
     if "Extra Data:" in msg:
         try:
             intended_msg_list = msg.split("Extra Data:")[1].split(",")
-            symbol_shortlisted = [symbol.split(" - ")[0] for symbol in intended_msg_list if "-" in symbol]
+            symbol_shortlisted = [symbol.split(" - ")[0].strip() for symbol in intended_msg_list if "-" in symbol]
             if "Re enter" in intended_msg_list[0]:
                 manage_strategy(symbol_shortlisted, "REENTER")
             elif "Full exit" in intended_msg_list[0]:
