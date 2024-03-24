@@ -6,7 +6,9 @@ from calculate import entry_quantity
 import csv
 from datetime import datetime, timedelta, date
 import time
+import sys
 import pandas as pd
+import pendulum
 
 
 local_position_book = STGY + "positions.csv"
@@ -16,6 +18,16 @@ channel_ids = CRED_TELEGRAM['input_channel_id']
 HEADERS = "strategy,symbol,exchange,action,intermediate_Candle_timeframe_in_minutes,exit_Candle_timeframe_in_minutes,capital_in_thousand,Risk per trade,Margin required,strategy_entry_time,strategy_exit_time,lot_size,product,token,exchange|token,is_in_position_book,strategy_started,stop_loss,quantity,side,life_cycle_state,last_transaction_time"
 
 client = TelegramClient('anon', api_id, api_hash)
+
+def is_time_reached(time_in_config):
+    # check if current time is greater than time as per configuration
+    # and return True or False
+    entry_time = time_in_config.split(":")
+    current_time = pendulum.now(pendulum.timezone("Asia/Kolkata"))
+    target_time = current_time.replace(
+        hour=int(entry_time[0]), minute=int(entry_time[1]), second=0, microsecond=0
+    )
+    return False if current_time < target_time else True
 
 def load_config_to_list_of_dicts(csv_file_path):
     """
@@ -168,9 +180,11 @@ def save_to_local_position_book(content_to_save):
         writer = csv.DictWriter(f, fieldnames=HEADERS.split(","))
         writer.writerow(content_to_save)
 
-
 def place_order_and_save_to_position_book(args, sym_config):
     TGRAM.send_msg(args)
+    if not broker.authenticate():
+        TGRAM.send_msg("Login Issue! Please check. Exiting now!")
+        sys.exit()
     resp = broker.order_place(**args)
     TGRAM.send_msg(resp if resp else "Got None from Broker")
     logger.debug(resp)
@@ -181,7 +195,6 @@ def place_order_and_save_to_position_book(args, sym_config):
         sym_config["last_transaction_time"] = datetime.today().strftime('%d-%m-%Y')
         sym_config["life_cycle_state"] = args["tag"]
         save_to_local_position_book(sym_config)
-
 
 def ohlc_to_ha(df):
     df = df[::-1]
@@ -330,6 +343,9 @@ async def my_event_handler(event):
             logger.error(traceback.format_exc())
     else:
         logger.debug(f"Ignoring msg : {msg}")
+    if is_time_reached('15:30'):
+        TGRAM.send_msg("Logout time reached! Exiting now!")
+        sys.exit()
 
 if __name__ == "__main__":
     global broker, configuration_details
@@ -346,3 +362,4 @@ if __name__ == "__main__":
         # Read telegram messages
         client.start(phone=CRED_TELEGRAM["phone_number"])
         client.run_until_disconnected()
+
