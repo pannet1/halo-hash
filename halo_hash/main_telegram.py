@@ -134,9 +134,11 @@ def read_and_get_updated_details(broker, configuration_details, symbols):
             symbols_and_config[i]["quantity"] = quantity
             symbols_and_config[i]["life_cycle_state"] = life_cycle_state
             symbols_and_config[i]["last_transaction_time"] = position.get("last_transaction_time")
+            symbols_and_config[i]["is_in_position_book"] = "True"
         else:
             symbols_and_config[i]["life_cycle_state"] = "False"
             symbols_and_config[i]["last_transaction_time"] = "01-01-2024"
+            symbols_and_config[i]["is_in_position_book"] = "False"
     # Check for older shortlisted symbols to manage
     for pos in open_positions:
         if (pos["strategy"], pos["symbol"]) not in [(i["strategy"], i["symbol"]) for i in symbols_and_config]:
@@ -276,7 +278,7 @@ def manage_strategy(symbols, action):
                 tag="EXIT_50",
             )
             place_order_and_save_to_position_book(args, sym_config)
-        elif action == "REENTER"  and "quantity" in sym_config and sym_config['life_cycle_state']!='False' and sym_config['life_cycle_state']=='EXIT_50%':
+        elif action == "REENTER"  and "quantity" in sym_config and sym_config['life_cycle_state']!='False' and sym_config['life_cycle_state']=='EXIT_50':
             args = dict(
                 side=sym_config["action"],  # since reenter, B will give B
                 product=sym_config["product"],  # for NRML
