@@ -112,6 +112,7 @@ def read_and_get_updated_details(broker, configuration_details, symbols):
         csv_reader = csv.DictReader(csv_file, fieldnames=headers)
         # Iterate through each row in the CSV file
         for row in csv_reader:
+            logger.info(f"row in position book {row}")
             open_positions.append(row)
     logger.info("=====Open Positions - Start======")
     for pos in open_positions:
@@ -144,24 +145,23 @@ def read_and_get_updated_details(broker, configuration_details, symbols):
             symbols_and_config[i]["is_in_position_book"] = "False"
     # Check for older shortlisted symbols to manage
     for pos in open_positions:
-        if (pos["strategy"], pos["symbol"]) not in [(i["strategy"], i["symbol"]) for i in symbols_and_config]:
-            quantity, position, life_cycle_state = is_available_in_position_book(
-                open_positions, {"symbol": pos["symbol"]}
+        quantity, position, life_cycle_state = is_available_in_position_book(
+            open_positions, {"symbol": pos["symbol"]}
+        )
+        if position and quantity != 0:  # available in position book
+            sym_config = {"symbol": pos["symbol"]}
+            sym_config["token"] = broker.instrument_symbol(
+                pos["exchange"], pos["symbol"]
             )
-            if position and quantity != 0:  # available in position book
-                sym_config = {"symbol": pos["symbol"]}
-                sym_config["token"] = broker.instrument_symbol(
-                    pos["exchange"], pos["symbol"]
-                )
-                logger.debug(f"token: {sym_config['token']}")
-                sym_config["exchange|token"] = (
-                    pos["exchange"] + "|" + pos["token"]
-                )
-                sym_config.update(position)
-                sym_config["quantity"] = quantity
-                sym_config["life_cycle_state"] = life_cycle_state
-                sym_config["last_transaction_time"] = position.get("last_transaction_time")
-                symbols_and_config.append(sym_config)
+            logger.debug(f"token: {sym_config['token']}")
+            sym_config["exchange|token"] = (
+                pos["exchange"] + "|" + pos["token"]
+            )
+            sym_config.update(position)
+            sym_config["quantity"] = quantity
+            sym_config["life_cycle_state"] = life_cycle_state
+            sym_config["last_transaction_time"] = position.get("last_transaction_time")
+            symbols_and_config.append(sym_config)
 
     symbols_and_config = [config for config in symbols_and_config if config["last_transaction_time"] != datetime.today().strftime('%d-%m-%Y')]
 
@@ -273,6 +273,9 @@ def manage_strategy(symbols, action):
             place_order_and_save_to_position_book(args, sym_config)
         elif action == "EXIT_50"  and "quantity" in sym_config and (sym_config['life_cycle_state']=='False' or sym_config['life_cycle_state']=='REENTER'):
             exit_quantity = int(int(sym_config["quantity"]) / 2)
+            if exit_quantity == 0:
+                logger.info("Quantity is 0, hence ignoring")
+                continue
             args = dict(
                 side="S" if sym_config["action"] == "B" else "B",  # since exiting, B will give S
                 product=sym_config["product"],  # for NRML
