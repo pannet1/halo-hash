@@ -11,7 +11,7 @@ import pandas as pd
 import pendulum
 from prettytable import PrettyTable
 
-
+socket_opened = False
 import requests
 import zipfile
 import os
@@ -94,7 +94,14 @@ def free_margin(broker):
         return int(float(margins.get("cash", 0)))
     return 0.05
 
+def event_handler_order_update(message):
+    TGRAM.send_msg("order updates: " + str(message))
 
+def open_callback():
+    global socket_opened
+    socket_opened = True
+    print('app is connected')
+    # api.subscribe('NSE|11630', feed_type='d')
 
 def get_latest_positions():
     open_positions = []
@@ -436,6 +443,7 @@ if __name__ == "__main__":
     broker = BROKER(**CRED)
     if broker.authenticate():
         logger.info("login successful")
+        ret = broker.finvasia.start_websocket(order_update_callback=event_handler_order_update, socket_open_callback=open_callback)
         MARGIN = free_margin(broker)
     
         # Read telegram messages
