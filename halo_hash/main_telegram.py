@@ -1,7 +1,7 @@
 from omspy_brokers.finvasia import Finvasia
 from telethon.sync import TelegramClient, events
 import traceback
-from constants import CRED, STGY, logger, TGRAM, CRED_TELEGRAM
+from constants import CRED, STGY, logger, TGRAM, CRED_TELEGRAM, FUTL
 from calculate import entry_quantity
 import csv
 from datetime import datetime, timedelta, date
@@ -9,7 +9,27 @@ import time
 import sys
 import pandas as pd
 import pendulum
+from prettytable import PrettyTable
 
+
+import requests
+import zipfile
+import os
+root = 'https://api.shoonya.com/'
+masters = ['NSE_symbols.txt.zip', ] 
+for zip_file in masters:    
+    url = root + zip_file
+    r = requests.get(url, allow_redirects=True)
+    open(zip_file, 'wb').write(r.content)
+    file_to_extract = zip_file.split()
+
+    try:
+        with zipfile.ZipFile(zip_file) as z:
+            z.extractall()
+    except:
+        print("Invalid file")
+    os.remove(zip_file)
+contract_nse_master_data = pd.read_csv('NSE_symbols.txt')[['Exchange','Symbol','Token','LotSize']].to_dict(orient="records")
 
 local_position_book = STGY + "positions.csv"
 api_id = CRED_TELEGRAM['api_id']
@@ -74,6 +94,34 @@ def free_margin(broker):
         return int(float(margins.get("cash", 0)))
     return 0.05
 
+
+
+def get_latest_positions():
+    open_positions = []
+    with open(local_position_book, "r") as csv_file:
+        headers = HEADERS.split(",")
+        csv_reader = csv.DictReader(csv_file, fieldnames=headers)
+        for row in csv_reader:
+            open_positions.append(row)
+    consolidated_positions = {}
+    for position in open_positions:
+        if position["symbol"] not in consolidated_positions:
+            consolidated_positions[position["symbol"]] = {k:v for k,v in position.items() if k in ("symbol", "quantity", "life_cycle_state", "action", "last_transaction_time")}
+        else:
+            dir = 1 if position["side"] == "B" else -1
+            consolidated_positions[position["symbol"]]["quantity"] = int(position["quantity"]) * dir
+            consolidated_positions[position["symbol"]]["life_cycle_state"] = "Entry" if position.get("life_cycle_state", "False") == "False" else position["life_cycle_state"]   
+            consolidated_positions[position["symbol"]]["action"] = position["action"]
+            consolidated_positions[position["symbol"]]["last_transaction_time"] = position["last_transaction_time"]
+    consolidated_positions = [i for i in list(consolidated_positions.values()) if int(i['quantity']) != 0]
+    x = PrettyTable()
+    column_names = consolidated_positions[0].keys()
+    x.field_names = column_names
+    for row in consolidated_positions:
+        x.add_row(row.values())
+    response = '<pre>{}</pre>'.format(x.get_string())
+    TGRAM.send_msg(f"Summary:\n\n{response}&parse_mode=HTML")
+
 def is_available_in_position_book(open_positions, config):
     # set this to True sym_config["is_in_position_book"]
     quantity = 0
@@ -93,6 +141,11 @@ def is_available_in_position_book(open_positions, config):
                 life_cycle_state = value.get("life_cycle_state")
     return (quantity, desired_position, life_cycle_state)
 
+def get_details_for_symbol(symbol, exchange, detail='Token'):
+    for entry in contract_nse_master_data:
+        if symbol.lower() == entry['Symbol'].lower() and exchange.upper() == entry.get('Exchange', 'NSE'):
+            return entry[detail]
+        
 def read_and_get_updated_details(broker, configuration_details, symbols):
     if not broker.authenticate():
         TGRAM.send_msg("Login Issue! Please check. Exiting now!")
@@ -121,16 +174,20 @@ def read_and_get_updated_details(broker, configuration_details, symbols):
     logger.info("=====Open Positions - End========")
     # Check for today's shortlisted symbols
     for i, sym_config in enumerate(symbols_and_config):
-        sym_config["token"] = broker.instrument_symbol(
-            sym_config["exchange"], sym_config["symbol"]
-        )
+        sym_config["token"] = get_details_for_symbol(sym_config["symbol"], sym_config["exchange"], detail="Token")
+        if not sym_config["token"]:
+            sym_config["token"] = broker.instrument_symbol(
+                sym_config["exchange"], sym_config["symbol"]
+            )
         logger.debug(f"token: {sym_config['token']}")
         sym_config["exchange|token"] = (
             sym_config["exchange"] + "|" + sym_config["token"]
         )
         # https://github.com/Shoonya-Dev/ShoonyaApi-py?tab=readme-ov-file#-get_quotesexchange-token
-        sym_config["lot_size"] = broker.scriptinfo(
-            sym_config["exchange"], sym_config["token"]).get("ls")
+        sym_config["lot_size"] = get_details_for_symbol(sym_config["symbol"], sym_config["exchange"], detail="LotSize")
+        if not sym_config["lot_size"]:
+            sym_config["lot_size"] = broker.scriptinfo(
+                sym_config["exchange"], sym_config["token"]).get("ls")
         quantity, position, life_cycle_state = is_available_in_position_book(
             open_positions, sym_config
         )
@@ -302,8 +359,8 @@ def manage_strategy(symbols, action):
             )
             place_order_and_save_to_position_book(args, sym_config)
         elif action == "ENTRY":
-            if sym_config.get("is_in_position_book", "False") == "True":
-                continue
+            # if sym_config.get("is_in_position_book", "False") == "True":
+            #     continue
             historical_data_df = get_historical_data(sym_config, 1)
             if historical_data_df.empty:
                 continue
@@ -357,10 +414,15 @@ async def my_event_handler(event):
                 logger.debug(f"Ignoring msg : {msg}")
         except:
             logger.error(traceback.format_exc())
+    elif "stop algo" in msg.lower():
+        TGRAM.send_msg("Stop algo command received! Exiting now!")
+        get_latest_positions()
+        sys.exit()
     else:
         logger.debug(f"Ignoring msg : {msg}")
     if is_time_reached('15:30'):
         TGRAM.send_msg("Logout time reached! Exiting now!")
+        get_latest_positions()
         sys.exit()
     logger.debug(f"Waiting for next message...")
 
