@@ -151,7 +151,7 @@ def is_available_in_position_book(open_positions, config):
 def get_details_for_symbol(symbol, exchange, detail='Token'):
     for entry in contract_nse_master_data:
         if symbol.lower() == entry['Symbol'].lower() and exchange.upper() == entry.get('Exchange', 'NSE'):
-            return entry[detail]
+            return str(entry[detail])
         
 def read_and_get_updated_details(broker, configuration_details, symbols):
     if not broker.authenticate():
@@ -182,6 +182,7 @@ def read_and_get_updated_details(broker, configuration_details, symbols):
     # Check for today's shortlisted symbols
     for i, sym_config in enumerate(symbols_and_config):
         sym_config["token"] = get_details_for_symbol(sym_config["symbol"], sym_config["exchange"], detail="Token")
+        logger.debug(f"token: {sym_config['token']}")
         if not sym_config["token"]:
             sym_config["token"] = broker.instrument_symbol(
                 sym_config["exchange"], sym_config["symbol"]
