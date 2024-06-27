@@ -9,6 +9,7 @@ import time
 import sys
 import pandas as pd
 import pendulum
+import tempfile
 from prettytable import PrettyTable
 
 socket_opened = False
@@ -121,13 +122,23 @@ def get_latest_positions():
             consolidated_positions[position["symbol"]]["action"] = position["action"]
             consolidated_positions[position["symbol"]]["last_transaction_time"] = position["last_transaction_time"]
     consolidated_positions = [i for i in list(consolidated_positions.values()) if int(i['quantity']) != 0]
-    x = PrettyTable()
-    column_names = consolidated_positions[0].keys()
-    x.field_names = column_names
-    for row in consolidated_positions:
-        x.add_row(row.values())
-    response = '<pre>{}</pre>'.format(x.get_string())
-    TGRAM.send_msg(f"Summary:\n\n{response}&parse_mode=HTML")
+    if consolidated_positions:
+        x = PrettyTable()
+        column_names = consolidated_positions[0].keys()
+        x.field_names = column_names
+        for row in consolidated_positions:
+            x.add_row(row.values())
+        response = '<pre>{}</pre>'.format(x.get_string())
+        TGRAM.send_msg(f"Summary:\n\n{response}&parse_mode=HTML")
+        with tempfile.NamedTemporaryFile(mode='w') as temp_csv:
+            writer = csv.DictWriter(temp_csv, fieldnames=column_names)
+            writer.writeheader()
+            writer.writerows(consolidated_positions)
+            document = open(temp_csv.name, "rb")
+            url = f"https://api.telegram.org/bot{TGRAM.api_key}/sendDocument"
+            _ = requests.post(url, data={'chat_id': TGRAM.chat_id}, files={'document': document})
+    else:
+        TGRAM.send_msg(f"No summary to send")
 
 def is_available_in_position_book(open_positions, config):
     # set this to True sym_config["is_in_position_book"]
