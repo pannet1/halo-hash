@@ -164,7 +164,24 @@ def get_details_for_symbol(symbol, exchange, detail='Token'):
     for entry in contract_nse_master_data:
         if symbol.lower() == entry['Symbol'].lower() and exchange.upper() == entry.get('Exchange', 'NSE'):
             return str(entry[detail])
-        
+
+def remove_exit_all_from_local_position_book():
+    with open(local_position_book, "r") as csv_file:
+        headers = HEADERS.split(",")
+        csv_reader = csv.DictReader(csv_file, fieldnames=headers)
+        # Iterate through each row in the CSV file
+        positions_ = [r for r in csv_reader]
+        for p in positions_.copy():
+            if p['life_cycle_state'] == 'EXIT_ALL' and p['last_transaction_time'] != datetime.today().strftime('%d-%m-%Y'):
+                for position in positions_:
+                    if position['symbol'] == p['symbol']:
+                        positions_.remove(position)
+        with open(local_position_book, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=HEADERS.split(","))
+            writer.writeheader()
+            writer.writerow(positions_)
+
+
 def read_and_get_updated_details(broker, configuration_details, symbols):
     if not broker.authenticate():
         TGRAM.send_msg("Login Issue! Please check. Exiting now!")
@@ -180,6 +197,7 @@ def read_and_get_updated_details(broker, configuration_details, symbols):
     logger.info(symbols_and_config)
 
     open_positions = []
+    remove_exit_all_from_local_position_book()
     with open(local_position_book, "r") as csv_file:
         headers = HEADERS.split(",")
         csv_reader = csv.DictReader(csv_file, fieldnames=headers)
