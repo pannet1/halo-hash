@@ -136,7 +136,8 @@ def get_latest_positions():
             writer.writerows(consolidated_positions)
             document = open(temp_csv.name, "rb")
             url = f"https://api.telegram.org/bot{TGRAM.api_key}/sendDocument"
-            _ = requests.post(url, data={'chat_id': TGRAM.chat_id}, files={'document': document})
+            r = requests.post(url, data={'chat_id': TGRAM.chat_id}, files={'document': document})
+            print(r.content)
     else:
         TGRAM.send_msg(f"No summary to send")
 
