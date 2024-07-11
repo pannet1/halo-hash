@@ -130,14 +130,14 @@ def get_latest_positions():
             x.add_row(row.values())
         response = '<pre>{}</pre>'.format(x.get_string())
         TGRAM.send_msg(f"Summary:\n\n{response}&parse_mode=HTML")
-        with tempfile.NamedTemporaryFile(mode='w') as temp_csv:
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp_csv:
             writer = csv.DictWriter(temp_csv, fieldnames=column_names)
             writer.writeheader()
             writer.writerows(consolidated_positions)
-            document = open(temp_csv.name, "rb")
-            url = f"https://api.telegram.org/bot{TGRAM.api_key}/sendDocument"
-            r = requests.post(url, data={'chat_id': TGRAM.chat_id}, files={'document': document})
-            print(r.content)
+            temp_csv_name = temp_csv.name
+        document = open(temp_csv_name, "rb")
+        url = f"https://api.telegram.org/bot{TGRAM.api_key}/sendDocument"
+        _ = requests.post(url, data={'chat_id': TGRAM.chat_id}, files={'document': document})
     else:
         TGRAM.send_msg(f"No summary to send")
 
@@ -460,6 +460,8 @@ if __name__ == "__main__":
         MARGIN = free_margin(broker)
     
         # Read telegram messages
-        client.start(phone=CRED_TELEGRAM["phone_number"])
-        client.run_until_disconnected()
-
+        try:
+            client.start(phone=CRED_TELEGRAM["phone_number"])
+            client.run_until_disconnected()
+        except:
+            pass
