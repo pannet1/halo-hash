@@ -105,6 +105,7 @@ def open_callback():
     # api.subscribe('NSE|11630', feed_type='d')
 
 def get_latest_positions():
+    remove_exit_all_from_local_position_book()
     open_positions = []
     with open(local_position_book, "r") as csv_file:
         headers = HEADERS.split(",")
