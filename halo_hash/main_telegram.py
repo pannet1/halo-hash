@@ -180,7 +180,7 @@ def remove_exit_all_from_local_position_book():
         with open(local_position_book, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=HEADERS.split(","))
             writer.writeheader()
-            writer.writerow(positions_)
+            writer.writerows(positions_)
 
 
 def read_and_get_updated_details(broker, configuration_details, symbols):
