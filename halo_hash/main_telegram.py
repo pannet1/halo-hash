@@ -179,7 +179,6 @@ def remove_exit_all_from_local_position_book():
                         positions_.remove(position)
         with open(local_position_book, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=HEADERS.split(","))
-            writer.writeheader()
             writer.writerows(positions_)
 
 
